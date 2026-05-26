@@ -3,12 +3,167 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MSH Landing Page</title>
-  <link rel="stylesheet" href="styles.css" />
+
+  <title>Muhammad Shayan Haider</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #f4f7ff, #e8f0ff);
+      color: #222;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      padding: 32px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 30px;
+      color: #1f3c88;
+    }
+
+    p {
+      margin-bottom: 28px;
+      color: #555;
+      font-size: 16px;
+    }
+
+    form {
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 18px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #1f3c88;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #162b63;
+    }
+
+    #message {
+      margin-top: 18px;
+      font-size: 14px;
+      text-align: center;
+      color: #1f3c88;
+      font-weight: bold;
+    }
+
+    .small-text {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #777;
+      text-align: center;
+    }
+  </style>
 </head>
+
 <body>
-  <main class="hero">
-    <span class="logo">Test bro again - Muhammad Shayan Haider</span>
-  </main>
+  <div class="card">
+    <h1>Muhammad Shayan Haider</h1>
+    <p>Welcome in here. Please tell me a little about yourself.</p>
+
+    <form id="visitorForm">
+      <label for="name">Your name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="Enter your name"
+        required
+      />
+
+      <label for="birthday">Your birthday</label>
+      <input
+        type="date"
+        id="birthday"
+        name="birthday"
+        required
+      />
+
+      <label for="color">Your favorite color</label>
+      <input
+        type="text"
+        id="color"
+        name="favorite_color"
+        placeholder="Example: blue, green, black"
+        required
+      />
+
+      <button type="submit">Submit</button>
+    </form>
+
+    <div id="message"></div>
+
+    <div class="small-text">
+      Thank you for visiting.
+    </div>
+  </div>
+
+  <script>
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeQjBbYn9eR5kXhsTIdgt7ih8qFuBaQuKg-UBOh73spn7wPKPCn1ssanuvNC9exNEG/exec";
+
+    const form = document.getElementById("visitorForm");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+
+      message.textContent = "Submitting...";
+
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: formData,
+        mode: "no-cors"
+      })
+      .then(function() {
+        message.textContent = "Thank you! Your response has been saved.";
+        form.reset();
+      })
+      .catch(function(error) {
+        message.textContent = "Something went wrong. Please try again.";
+        console.error("Error:", error);
+      });
+    });
+  </script>
 </body>
 </html>
