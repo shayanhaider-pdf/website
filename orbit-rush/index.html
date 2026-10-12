@@ -6,68 +6,136 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#080d18" />
-<title>Orbit Rush</title>
+<title>Orbit Rush: Rogue</title>
 <style>
-:root{color-scheme:dark;--ink:#eef7ff;--muted:#9db1c7;--cyan:#6ef3ff;--violet:#a48bff;--gold:#ffd766}
+:root{color-scheme:dark;--ink:#eef7ff;--muted:#9db1c7;--cyan:#6ef3ff;--violet:#a48bff;--gold:#ffd766;--red:#ff7188;--green:#7dffb2}
 *{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#060a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none;overscroll-behavior:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
-#hud{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;color:var(--ink);font-weight:850;text-shadow:0 2px 10px #000}
-.pill{min-width:92px;padding:8px 11px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(8,14,25,.52);backdrop-filter:blur(8px)}
-.pill.right{text-align:right}.label{display:block;color:var(--muted);font-size:10px;letter-spacing:.13em;text-transform:uppercase}.value{display:block;font-size:22px;line-height:1.05;margin-top:2px}
-#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(circle at 50% 30%,rgba(42,78,135,.3),rgba(4,7,13,.88));z-index:5}
-.card{width:min(430px,92vw);padding:24px;border:1px solid rgba(255,255,255,.13);border-radius:24px;background:rgba(8,14,25,.88);backdrop-filter:blur(16px);box-shadow:0 25px 80px rgba(0,0,0,.55);text-align:center}
-h1{font-size:34px;line-height:1;margin:0 0 10px;letter-spacing:.02em}.subtitle{margin:0 0 18px;color:#c6d5e5;line-height:1.45}.help{font-size:13px;color:var(--muted);line-height:1.45;margin-top:12px}
-button{width:100%;border:0;border-radius:16px;padding:15px 18px;font-size:18px;font-weight:900;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#07111c;box-shadow:0 9px 30px rgba(110,243,255,.2)}button:active{transform:scale(.985)}
-#hint{position:fixed;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.09);background:rgba(8,14,25,.62);color:#c9d7e6;font-size:12px;pointer-events:none;transition:opacity .3s}
+#hud{position:fixed;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;pointer-events:none;color:var(--ink);font-weight:850;text-shadow:0 2px 10px #000;z-index:3}
+#hudTop{display:flex;justify-content:space-between;gap:8px}.pill{padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(8,14,25,.58);backdrop-filter:blur(8px)}
+.label{display:block;color:var(--muted);font-size:9px;letter-spacing:.12em;text-transform:uppercase}.value{display:block;font-size:19px;line-height:1.05;margin-top:1px}.right{text-align:right}
+#statusRow{margin-top:8px;display:flex;align-items:center;gap:8px}.status{font-size:12px;padding:6px 9px}.hearts{letter-spacing:2px;color:var(--red);font-size:15px}.shieldText{color:var(--cyan)}
+#xpWrap{height:8px;flex:1;border:1px solid rgba(255,255,255,.12);background:rgba(8,14,25,.62);border-radius:99px;overflow:hidden}.xp{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .15s}
+#xpLabel{font-size:11px;min-width:42px;text-align:right;color:#d8e7f7}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 30%,rgba(42,78,135,.32),rgba(4,7,13,.9));z-index:8}
+.card{width:min(460px,94vw);padding:22px;border:1px solid rgba(255,255,255,.13);border-radius:24px;background:rgba(8,14,25,.93);backdrop-filter:blur(16px);box-shadow:0 25px 80px rgba(0,0,0,.55);text-align:center}
+h1{font-size:32px;line-height:1;margin:0 0 10px;letter-spacing:.02em}.subtitle{margin:0 0 16px;color:#c6d5e5;line-height:1.45}.help{font-size:13px;color:var(--muted);line-height:1.45;margin-top:12px}
+button{width:100%;border:0;border-radius:16px;padding:14px 18px;font-size:17px;font-weight:900;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#07111c;box-shadow:0 9px 30px rgba(110,243,255,.2)}button:active{transform:scale(.985)}
+#levelOverlay{display:none;align-items:flex-end;padding-bottom:max(16px,env(safe-area-inset-bottom));background:rgba(2,5,10,.75)}
+#levelPanel{width:min(560px,96vw);padding:16px;border-radius:24px;background:rgba(8,14,25,.97);border:1px solid rgba(255,255,255,.13);box-shadow:0 -20px 70px rgba(0,0,0,.55)}
+#levelTitle{text-align:center;font-size:24px;font-weight:950;margin-bottom:4px}.levelSub{text-align:center;color:var(--muted);font-size:12px;margin-bottom:12px}
+#choices{display:grid;grid-template-columns:1fr;gap:9px}.upgrade{display:block;text-align:left;padding:13px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,rgba(30,46,74,.95),rgba(20,27,47,.95));color:var(--ink);box-shadow:none}
+.upgrade .uName{font-size:15px;font-weight:950;margin-bottom:3px}.upgrade .uDesc{font-size:12px;color:#bfd0e1;font-weight:600;line-height:1.35}.upgrade .tag{float:right;font-size:9px;padding:3px 6px;border-radius:99px;background:rgba(255,255,255,.1);color:#d9e4f0;letter-spacing:.08em}
+#reroll{margin-top:9px;background:rgba(255,255,255,.08);color:#d8e5f1;border:1px solid rgba(255,255,255,.12);box-shadow:none;font-size:13px;padding:10px}
+#reroll:disabled{opacity:.35}
+#hint{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.09);background:rgba(8,14,25,.62);color:#c9d7e6;font-size:11px;pointer-events:none;transition:opacity .3s;z-index:3}
+#eventBanner{position:fixed;top:22%;left:50%;transform:translate(-50%,-50%) scale(.95);padding:9px 15px;border-radius:999px;background:rgba(8,14,25,.78);border:1px solid rgba(255,255,255,.12);font-weight:950;letter-spacing:.08em;color:#fff;opacity:0;transition:.22s;z-index:4;pointer-events:none;text-align:center;white-space:nowrap}
+#eventBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#buildList{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}.buildChip{font-size:10px;padding:5px 7px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:#c7d6e6}
+@media (min-width:700px){#choices{grid-template-columns:repeat(3,1fr)}.upgrade{min-height:126px}.upgrade .tag{float:none;display:inline-block;margin-bottom:8px}.upgrade .uName{font-size:16px}}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div class="pill"><span class="label">Score</span><span class="value" id="score">0</span></div><div class="pill right"><span class="label">Best</span><span class="value" id="best">0</span></div></div>
-<div id="overlay"><div class="card" id="card"><h1>ORBIT RUSH</h1><p class="subtitle">Guide your ship through the asteroid field and collect stars. Survive as long as you can.</p><button id="play">PLAY</button><div class="help">Drag anywhere to steer. Gold stars add bonus points. Blue shields absorb one hit.</div></div></div>
-<div id="hint">Drag to steer</div>
+<div id="hud">
+  <div id="hudTop">
+    <div class="pill"><span class="label">Score</span><span class="value" id="score">0</span></div>
+    <div class="pill"><span class="label">Level</span><span class="value" id="level">1</span></div>
+    <div class="pill right"><span class="label">Best</span><span class="value" id="best">0</span></div>
+  </div>
+  <div id="statusRow">
+    <div class="pill status"><span class="hearts" id="hearts">♥♥♥</span> <span class="shieldText" id="shieldText"></span></div>
+    <div id="xpWrap"><div class="xp" id="xp"></div></div><div id="xpLabel">0/40</div>
+  </div>
+</div>
+<div class="overlay" id="overlay"><div class="card" id="card">
+  <h1>ORBIT RUSH: ROGUE</h1>
+  <p class="subtitle">Every run builds differently. Collect energy, level up, choose upgrades, and survive increasingly dangerous sectors.</p>
+  <button id="play">START RUN</button>
+  <div class="help">Drag anywhere to steer. Gold stars give score + XP. Blue shields absorb damage. Level-ups pause the action while you choose one upgrade.</div>
+</div></div>
+<div class="overlay" id="levelOverlay"><div id="levelPanel">
+  <div id="levelTitle">LEVEL UP</div><div class="levelSub">Choose one upgrade for this run</div>
+  <div id="choices"></div><button id="reroll">REROLL CHOICES • 1 LEFT</button>
+</div></div>
+<div id="eventBanner"></div><div id="hint">Drag to steer</div>
 <script>
 (()=>{
 const c=document.getElementById('game'),x=c.getContext('2d');
-const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),levelEl=document.getElementById('level');
+const heartsEl=document.getElementById('hearts'),shieldText=document.getElementById('shieldText'),xpEl=document.getElementById('xp'),xpLabel=document.getElementById('xpLabel');
 const overlay=document.getElementById('overlay'),card=document.getElementById('card'),play=document.getElementById('play'),hint=document.getElementById('hint');
-let W=0,H=0,D=1,last=0,running=false,t0=0,spawn=0,starSpawn=0,shieldSpawn=0,score=0;
-let best=+(localStorage.getItem('orbitRushBest')||0);bestEl.textContent=best;
-const ship={x:innerWidth/2,y:innerHeight*.78,tx:innerWidth/2,ty:innerHeight*.78,r:15,shield:0};
-let rocks=[],stars=[],pickups=[],dust=[];
+const levelOverlay=document.getElementById('levelOverlay'),choicesEl=document.getElementById('choices'),rerollBtn=document.getElementById('reroll'),eventBanner=document.getElementById('eventBanner');
+let W=0,H=0,D=1,last=0,running=false,paused=false,t0=0,spawn=0,starSpawn=0,shieldSpawn=0,score=0,elapsed=0,nextWave=18,wave=1,rerolls=1;
+let best=+(localStorage.getItem('orbitRushRogueBest')||localStorage.getItem('orbitRushBest')||0);bestEl.textContent=best;
+const base={maxHp:3,follow:11,hitbox:1,rockSlow:1,scoreMult:1,xpMult:1,starScore:25,magnet:0,shieldCap:1,autoShield:0,luck:0,nova:0,repairChance:0};
+const ship={x:innerWidth/2,y:innerHeight*.78,tx:innerWidth/2,ty:innerHeight*.78,r:15,hp:3,maxHp:3,shield:0,level:1,xp:0,xpNeed:40,follow:11,hitbox:1,rockSlow:1,scoreMult:1,xpMult:1,starScore:25,magnet:0,shieldCap:1,autoShield:0,autoShieldTimer:0,luck:0,nova:0,repairChance:0};
+let rocks=[],stars=[],pickups=[],dust=[],build={};
 function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*D;c.height=H*D;c.style.width=W+'px';c.style.height=H+'px';x.setTransform(D,0,0,D,0,0);ship.x=Math.min(W-25,Math.max(25,ship.x));ship.y=Math.min(H-35,Math.max(90,ship.y))}
 addEventListener('resize',resize);resize();
 function rnd(a,b){return a+Math.random()*(b-a)}
-function reset(){rocks=[];stars=[];pickups=[];dust=[];score=0;spawn=0;starSpawn=.5;shieldSpawn=7;ship.x=W/2;ship.y=H*.78;ship.tx=ship.x;ship.ty=ship.y;ship.shield=0;scoreEl.textContent=0;for(let i=0;i<70;i++)dust.push({x:Math.random()*W,y:Math.random()*H,s:rnd(.5,2),v:rnd(15,55),a:rnd(.18,.75)})}
-function rock(){const r=rnd(15,34),edge=Math.random();rocks.push({x:rnd(r,W-r),y:-r-10,r,vy:rnd(150,230),vx:rnd(-35,35),rot:rnd(0,6.28),vr:rnd(-1.8,1.8),n:Math.floor(rnd(7,11))})}
-function star(){stars.push({x:rnd(24,W-24),y:-20,r:10,vy:rnd(130,180),rot:rnd(0,6.28)})}
-function shield(){pickups.push({x:rnd(28,W-28),y:-25,r:13,vy:140,p:0})}
+function chance(p){return Math.random()<p}
+function resetShip(){Object.assign(ship,{...base,x:W/2,y:H*.78,tx:W/2,ty:H*.78,r:15,hp:3,level:1,xp:0,xpNeed:40,shield:0,autoShieldTimer:0});ship.maxHp=base.maxHp}
+function reset(){rocks=[];stars=[];pickups=[];dust=[];build={};score=0;spawn=0;starSpawn=.4;shieldSpawn=8;elapsed=0;nextWave=18;wave=1;rerolls=1;resetShip();updateHud();for(let i=0;i<70;i++)dust.push({x:Math.random()*W,y:Math.random()*H,s:rnd(.5,2),v:rnd(15,55),a:rnd(.18,.75)})}
+function updateHud(){scoreEl.textContent=Math.floor(score);levelEl.textContent=ship.level;heartsEl.textContent='♥'.repeat(Math.max(0,ship.hp))+'♡'.repeat(Math.max(0,ship.maxHp-ship.hp));shieldText.textContent=ship.shield?`  ◈${ship.shield}`:'';let pct=Math.max(0,Math.min(1,ship.xp/ship.xpNeed));xpEl.style.width=(pct*100)+'%';xpLabel.textContent=`${Math.floor(ship.xp)}/${ship.xpNeed}`}
+function rock(kind){kind=kind||((wave>=3&&chance(.16))?'fast':(wave>=5&&chance(.12))?'heavy':'normal');let r,vy,vx,color,damage=1;if(kind==='fast'){r=rnd(10,18);vy=rnd(260,340);vx=rnd(-80,80);color='#9b4058'}else if(kind==='heavy'){r=rnd(32,45);vy=rnd(110,155);vx=rnd(-22,22);color='#4b4269'}else{r=rnd(15,33);vy=rnd(150,230);vx=rnd(-35,35);color='#374154'}rocks.push({x:rnd(r,W-r),y:-r-10,r,vy,vx,rot:rnd(0,6.28),vr:rnd(-1.8,1.8),n:Math.floor(rnd(7,11)),kind,color,damage})}
+function star(){stars.push({x:rnd(24,W-24),y:-20,r:10,vy:rnd(130,180),rot:rnd(0,6.28),xp:14})}
+function shield(){pickups.push({x:rnd(28,W-28),y:-25,r:13,vy:140,p:0,type:'shield'})}
+function repair(){pickups.push({x:rnd(28,W-28),y:-25,r:12,vy:135,p:0,type:'repair'})}
 function hit(ax,ay,ar,bx,by,br){let dx=ax-bx,dy=ay-by;return dx*dx+dy*dy<(ar+br)*(ar+br)}
 function burst(px,py,n,type){for(let i=0;i<n;i++){let a=Math.random()*6.28,s=rnd(45,180);dust.push({x:px,y:py,s:rnd(1.2,3.4),v:0,vx:Math.cos(a)*s,vy:Math.sin(a)*s,a:1,life:rnd(.3,.75),type})}}
-function end(){running=false;let final=Math.floor(score);if(final>best){best=final;localStorage.setItem('orbitRushBest',best);bestEl.textContent=best}burst(ship.x,ship.y,25,'boom');draw();card.innerHTML=`<h1>${final>=best&&final>0?'NEW BEST':'GAME OVER'}</h1><p class="subtitle">Score: <b>${final}</b></p><button id="again">PLAY AGAIN</button><div class="help">The asteroid field speeds up over time.</div>`;overlay.style.display='flex';document.getElementById('again').onclick=start;if(navigator.vibrate)navigator.vibrate([35,35,70])}
-function start(){reset();running=true;t0=performance.now();last=t0;overlay.style.display='none';hint.style.opacity=1;requestAnimationFrame(loop)}
+function banner(t){eventBanner.textContent=t;eventBanner.classList.add('show');setTimeout(()=>eventBanner.classList.remove('show'),1200)}
+function gainXp(n){ship.xp+=n*ship.xpMult;while(ship.xp>=ship.xpNeed){ship.xp-=ship.xpNeed;ship.level++;ship.xpNeed=Math.floor(40+ship.level*14);updateHud();openLevelUp();break}}
+function addScore(n){score+=n*ship.scoreMult}
+function takeDamage(){if(ship.shield>0){ship.shield--;burst(ship.x,ship.y,14,'shield');banner('SHIELD SAVED YOU');if(navigator.vibrate)navigator.vibrate(18);return}ship.hp--;burst(ship.x,ship.y,16,'boom');if(navigator.vibrate)navigator.vibrate([25,25,35]);if(ship.hp<=0){end();return}banner(`HULL ${ship.hp}/${ship.maxHp}`)}
+function clearNearby(radius){for(let i=rocks.length-1;i>=0;i--){let o=rocks[i];if(Math.hypot(o.x-ship.x,o.y-ship.y)<radius){burst(o.x,o.y,8,'rock');rocks.splice(i,1);addScore(4)}}}
+const upgrades=[
+ {id:'hull',name:'Reinforced Hull',tag:'SURVIVAL',desc:'+1 max hull and repair 1 hull.',max:3,apply(){ship.maxHp++;ship.hp=Math.min(ship.maxHp,ship.hp+1)}},
+ {id:'thrusters',name:'Vector Thrusters',tag:'MOBILITY',desc:'Ship follows your finger 22% faster.',max:4,apply(){ship.follow*=1.22}},
+ {id:'evasion',name:'Evasive Matrix',tag:'SURVIVAL',desc:'Your collision hitbox becomes 12% smaller.',max:4,apply(){ship.hitbox*=.88}},
+ {id:'time',name:'Time Dilation',tag:'CONTROL',desc:'Asteroids move 8% slower.',max:4,apply(){ship.rockSlow*=.92}},
+ {id:'magnet',name:'Gravity Magnet',tag:'UTILITY',desc:'Pull stars and pickups toward you from farther away.',max:4,apply(){ship.magnet+=55}},
+ {id:'core',name:'Star Core',tag:'ECONOMY',desc:'+35% XP from stars and survival.',max:5,apply(){ship.xpMult*=1.35}},
+ {id:'score',name:'Overdrive',tag:'SCORE',desc:'+25% score from every source.',max:5,apply(){ship.scoreMult*=1.25}},
+ {id:'harvest',name:'Radiant Harvest',tag:'SCORE',desc:'Stars are worth +18 score.',max:5,apply(){ship.starScore+=18}},
+ {id:'barrier',name:'Barrier Generator',tag:'SURVIVAL',desc:'Automatically gain a shield charge every 28s.',max:3,apply(){ship.autoShield=ship.autoShield?Math.max(15,ship.autoShield-5):28;ship.autoShieldTimer=ship.autoShield}},
+ {id:'capacitor',name:'Shield Capacitor',tag:'SURVIVAL',desc:'+1 maximum shield charge and gain one now.',max:3,apply(){ship.shieldCap++;ship.shield=Math.min(ship.shieldCap,ship.shield+1)}},
+ {id:'luck',name:'Lucky Comet',tag:'CHAOS',desc:'Stars gain a 20% chance to award double score and XP.',max:4,apply(){ship.luck=Math.min(.8,ship.luck+.2)}},
+ {id:'nova',name:'Nova Collector',tag:'OFFENSE',desc:'Collecting a star destroys nearby asteroids.',max:3,apply(){ship.nova+=55}},
+ {id:'nanites',name:'Repair Nanites',tag:'SURVIVAL',desc:'Stars have a 6% chance to repair 1 hull.',max:4,apply(){ship.repairChance+=.06}}
+];
+function eligible(){return upgrades.filter(u=>(build[u.id]||0)<u.max)}
+function rollChoices(){let pool=eligible(),out=[];while(pool.length&&out.length<3){let i=Math.floor(Math.random()*pool.length);out.push(pool.splice(i,1)[0])}return out}
+function renderChoices(){choicesEl.innerHTML='';for(const u of rollChoices()){let b=document.createElement('button');b.className='upgrade';let rank=(build[u.id]||0)+1;b.innerHTML=`<span class="tag">${u.tag}</span><div class="uName">${u.name} <span style="opacity:.45">${rank}/${u.max}</span></div><div class="uDesc">${u.desc}</div>`;b.onclick=()=>chooseUpgrade(u);choicesEl.appendChild(b)}rerollBtn.textContent=`REROLL CHOICES • ${rerolls} LEFT`;rerollBtn.disabled=rerolls<=0}
+function openLevelUp(){paused=true;levelOverlay.style.display='flex';renderChoices();banner(`LEVEL ${ship.level}`)}
+function chooseUpgrade(u){build[u.id]=(build[u.id]||0)+1;u.apply();levelOverlay.style.display='none';paused=false;updateHud();banner(u.name.toUpperCase());last=performance.now();requestAnimationFrame(loop)}
+rerollBtn.onclick=()=>{if(rerolls>0){rerolls--;renderChoices()}};
+function buildHtml(){let parts=[];for(const u of upgrades){let n=build[u.id]||0;if(n)parts.push(`<span class="buildChip">${u.name} ×${n}</span>`)}return parts.join('')||'<span class="buildChip">No upgrades</span>'}
+function end(){running=false;paused=false;let final=Math.floor(score);let isBest=final>best;if(isBest){best=final;localStorage.setItem('orbitRushRogueBest',best);bestEl.textContent=best}burst(ship.x,ship.y,28,'boom');draw();card.innerHTML=`<h1>${isBest?'NEW BEST':'RUN OVER'}</h1><p class="subtitle">Score <b>${final}</b> · Level <b>${ship.level}</b> · Sector <b>${wave}</b></p><button id="again">START NEW RUN</button><div id="buildList">${buildHtml()}</div><div class="help">Every new run resets your upgrades, so you can build the ship differently.</div>`;overlay.style.display='flex';document.getElementById('again').onclick=start}
+function start(){reset();running=true;paused=false;t0=performance.now();last=t0;overlay.style.display='none';levelOverlay.style.display='none';hint.style.opacity=1;banner('SECTOR 1');requestAnimationFrame(loop)}
 play.onclick=start;
-function update(dt,now){const age=(now-t0)/1000,boost=Math.min(2.15,1+age/48);score+=dt*9*boost;scoreEl.textContent=Math.floor(score);ship.x+=(ship.tx-ship.x)*Math.min(1,dt*11);ship.y+=(ship.ty-ship.y)*Math.min(1,dt*11);ship.x=Math.max(20,Math.min(W-20,ship.x));ship.y=Math.max(80,Math.min(H-28,ship.y));
-spawn-=dt;if(spawn<=0){rock();if(Math.random()<Math.min(.5,age/55))rock();spawn=Math.max(.19,.62-age*.006)*rnd(.75,1.2)}
-starSpawn-=dt;if(starSpawn<=0){star();starSpawn=rnd(1.4,2.4)}shieldSpawn-=dt;if(shieldSpawn<=0){shield();shieldSpawn=rnd(11,17)}
-for(const d of dust){if(d.life!==undefined){d.life-=dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.vx*=.985;d.vy*=.985}else{d.y+=d.v*dt;if(d.y>H+3){d.y=-3;d.x=Math.random()*W}}}
-dust=dust.filter(d=>d.life===undefined||d.life>0);
-for(let i=rocks.length-1;i>=0;i--){let o=rocks[i];o.y+=o.vy*boost*dt;o.x+=o.vx*dt;o.rot+=o.vr*dt;if(hit(ship.x,ship.y,ship.r,o.x,o.y,o.r*.82)){rocks.splice(i,1);burst(o.x,o.y,16,'rock');if(ship.shield){ship.shield=0;score+=15;if(navigator.vibrate)navigator.vibrate(20)}else{end();return false}}else if(o.y>H+60)rocks.splice(i,1)}
-for(let i=stars.length-1;i>=0;i--){let s=stars[i];s.y+=s.vy*boost*dt;s.rot+=dt*2;if(hit(ship.x,ship.y,ship.r,s.x,s.y,s.r+2)){stars.splice(i,1);score+=25;burst(s.x,s.y,10,'star');if(navigator.vibrate)navigator.vibrate(12)}else if(s.y>H+30)stars.splice(i,1)}
-for(let i=pickups.length-1;i>=0;i--){let p=pickups[i];p.y+=p.vy*dt;p.p+=dt*4;if(hit(ship.x,ship.y,ship.r,p.x,p.y,p.r+2)){pickups.splice(i,1);ship.shield=1;burst(p.x,p.y,12,'shield');if(navigator.vibrate)navigator.vibrate(15)}else if(p.y>H+30)pickups.splice(i,1)}return true}
+function waveEvent(){wave++;nextWave+=18;let names=['ASTEROID SURGE','FAST ORBITS','DENSE FIELD','GRAVITY STORM','DEEP SECTOR'];let name=names[Math.min(names.length-1,wave-2)];banner(`SECTOR ${wave} · ${name}`);for(let i=0;i<Math.min(2+wave,6);i++)setTimeout(()=>{if(running&&!paused)rock(wave%3===0?'fast':undefined)},i*120)}
+function update(dt,now){if(paused)return true;elapsed=(now-t0)/1000;if(elapsed>=nextWave)waveEvent();let boost=Math.min(2.25,1+elapsed/58+(wave-1)*.035);addScore(dt*9*boost);gainXp(dt*1.45);ship.x+=(ship.tx-ship.x)*Math.min(1,dt*ship.follow);ship.y+=(ship.ty-ship.y)*Math.min(1,dt*ship.follow);ship.x=Math.max(20,Math.min(W-20,ship.x));ship.y=Math.max(80,Math.min(H-28,ship.y));
+if(ship.autoShield){ship.autoShieldTimer-=dt;if(ship.autoShieldTimer<=0){if(ship.shield<ship.shieldCap){ship.shield++;banner('BARRIER RECHARGED')}ship.autoShieldTimer=ship.autoShield}}
+spawn-=dt;if(spawn<=0){rock();if(chance(Math.min(.58,elapsed/50+(wave-1)*.025)))rock();spawn=Math.max(.17,.61-elapsed*.0055-(wave-1)*.015)*rnd(.72,1.16)}
+starSpawn-=dt;if(starSpawn<=0){star();starSpawn=rnd(1.25,2.15)}shieldSpawn-=dt;if(shieldSpawn<=0){if(chance(.78))shield();else repair();shieldSpawn=rnd(11,17)}
+for(const d of dust){if(d.life!==undefined){d.life-=dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.vx*=.985;d.vy*=.985}else{d.y+=d.v*dt;if(d.y>H+3){d.y=-3;d.x=Math.random()*W}}}dust=dust.filter(d=>d.life===undefined||d.life>0);
+for(let i=rocks.length-1;i>=0;i--){let o=rocks[i];o.y+=o.vy*boost*ship.rockSlow*dt;o.x+=o.vx*dt;o.rot+=o.vr*dt;if(hit(ship.x,ship.y,ship.r*ship.hitbox,o.x,o.y,o.r*.8)){rocks.splice(i,1);burst(o.x,o.y,16,'rock');takeDamage();if(!running)return false}else if(o.y>H+65)rocks.splice(i,1)}
+const attract=(obj,dt)=>{if(!ship.magnet)return;let dx=ship.x-obj.x,dy=ship.y-obj.y,d=Math.hypot(dx,dy);if(d<ship.magnet&&d>4){let s=(ship.magnet-d+20)*4.2;obj.x+=dx/d*s*dt;obj.y+=dy/d*s*dt}};
+for(let i=stars.length-1;i>=0;i--){let s=stars[i];attract(s,dt);s.y+=s.vy*boost*.86*dt;s.rot+=dt*2;if(hit(ship.x,ship.y,ship.r,s.x,s.y,s.r+2)){stars.splice(i,1);let dbl=chance(ship.luck),mult=dbl?2:1;addScore(ship.starScore*mult);gainXp(s.xp*mult);burst(s.x,s.y,10,dbl?'lucky':'star');if(ship.nova)clearNearby(ship.nova);if(ship.repairChance&&ship.hp<ship.maxHp&&chance(ship.repairChance)){ship.hp++;banner('NANITES REPAIRED HULL')}if(dbl)banner('LUCKY STAR ×2');if(navigator.vibrate)navigator.vibrate(10)}else if(s.y>H+30)stars.splice(i,1)}
+for(let i=pickups.length-1;i>=0;i--){let p=pickups[i];attract(p,dt);p.y+=p.vy*dt;p.p+=dt*4;if(hit(ship.x,ship.y,ship.r,p.x,p.y,p.r+2)){pickups.splice(i,1);if(p.type==='shield'){if(ship.shield<ship.shieldCap)ship.shield++;else addScore(18);burst(p.x,p.y,12,'shield')}else{if(ship.hp<ship.maxHp){ship.hp++;banner('HULL REPAIRED')}else addScore(20);burst(p.x,p.y,12,'repair')}if(navigator.vibrate)navigator.vibrate(12)}else if(p.y>H+30)pickups.splice(i,1)}updateHud();return true}
 function poly(cx,cy,r,n,rot){x.beginPath();for(let i=0;i<n;i++){let a=rot+i*6.283/n,rr=r*(.78+.2*Math.sin(i*2.7+rot));let px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath()}
-function draw(){x.clearRect(0,0,W,H);let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#081326');g.addColorStop(.6,'#07101c');g.addColorStop(1,'#04070c');x.fillStyle=g;x.fillRect(0,0,W,H);
-let neb=x.createRadialGradient(W*.25,H*.25,10,W*.25,H*.25,Math.max(W,H)*.55);neb.addColorStop(0,'rgba(74,91,190,.18)');neb.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=neb;x.fillRect(0,0,W,H);
-for(const d of dust){x.globalAlpha=Math.max(0,d.a*(d.life===undefined?1:Math.min(1,d.life*2)));x.fillStyle=d.type==='star'?'#ffd766':d.type==='shield'?'#6ef3ff':d.type==='boom'?'#ff8870':'#d9efff';x.beginPath();x.arc(d.x,d.y,d.s,0,6.28);x.fill()}x.globalAlpha=1;
+function draw(){x.clearRect(0,0,W,H);let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#081326');g.addColorStop(.6,'#07101c');g.addColorStop(1,'#04070c');x.fillStyle=g;x.fillRect(0,0,W,H);let neb=x.createRadialGradient(W*.25,H*.25,10,W*.25,H*.25,Math.max(W,H)*.55);neb.addColorStop(0,'rgba(74,91,190,.18)');neb.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=neb;x.fillRect(0,0,W,H);
+for(const d of dust){x.globalAlpha=Math.max(0,d.a*(d.life===undefined?1:Math.min(1,d.life*2)));x.fillStyle=d.type==='star'?'#ffd766':d.type==='lucky'?'#fff2a8':d.type==='shield'?'#6ef3ff':d.type==='repair'?'#7dffb2':d.type==='boom'?'#ff8870':'#d9efff';x.beginPath();x.arc(d.x,d.y,d.s,0,6.28);x.fill()}x.globalAlpha=1;
 for(const s of stars){x.save();x.translate(s.x,s.y);x.rotate(s.rot);x.shadowBlur=18;x.shadowColor='#ffd766';x.fillStyle='#ffd766';x.beginPath();for(let i=0;i<10;i++){let a=-Math.PI/2+i*Math.PI/5,rr=i%2?4:s.r;let px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath();x.fill();x.restore()}
-for(const p of pickups){x.save();x.shadowBlur=22;x.shadowColor='#6ef3ff';x.strokeStyle='#6ef3ff';x.lineWidth=3;x.beginPath();x.arc(p.x,p.y,p.r+Math.sin(p.p)*2,0,6.28);x.stroke();x.fillStyle='rgba(110,243,255,.25)';x.beginPath();x.arc(p.x,p.y,p.r-3,0,6.28);x.fill();x.restore()}
-for(const o of rocks){x.save();x.shadowBlur=8;x.shadowColor='rgba(168,124,255,.35)';x.fillStyle='#374154';x.strokeStyle='#77869c';x.lineWidth=1.5;poly(o.x,o.y,o.r,o.n,o.rot);x.fill();x.stroke();x.restore()}
-if(ship.shield){x.save();x.shadowBlur=25;x.shadowColor='#6ef3ff';x.strokeStyle='rgba(110,243,255,.85)';x.lineWidth=2;x.beginPath();x.arc(ship.x,ship.y,ship.r+10,0,6.28);x.stroke();x.restore()}
-x.save();x.translate(ship.x,ship.y);x.shadowBlur=22;x.shadowColor='#6ef3ff';x.fillStyle='#8cf7ff';x.beginPath();x.moveTo(0,-20);x.lineTo(14,15);x.lineTo(0,9);x.lineTo(-14,15);x.closePath();x.fill();x.fillStyle='#a48bff';x.beginPath();x.moveTo(-6,13);x.lineTo(0,27+rnd(0,3));x.lineTo(6,13);x.closePath();x.fill();x.restore()}
-function loop(now){if(!running)return;let dt=Math.min(.033,(now-last)/1000);last=now;let alive=update(dt,now);draw();if(alive&&running)requestAnimationFrame(loop)}
+for(const p of pickups){x.save();x.shadowBlur=22;x.shadowColor=p.type==='repair'?'#7dffb2':'#6ef3ff';x.strokeStyle=p.type==='repair'?'#7dffb2':'#6ef3ff';x.lineWidth=3;x.beginPath();x.arc(p.x,p.y,p.r+Math.sin(p.p)*2,0,6.28);x.stroke();x.fillStyle=p.type==='repair'?'rgba(125,255,178,.2)':'rgba(110,243,255,.22)';x.beginPath();x.arc(p.x,p.y,p.r-3,0,6.28);x.fill();if(p.type==='repair'){x.fillStyle='#dfffee';x.fillRect(p.x-2,p.y-7,4,14);x.fillRect(p.x-7,p.y-2,14,4)}x.restore()}
+for(const o of rocks){x.save();x.shadowBlur=o.kind==='fast'?13:8;x.shadowColor=o.kind==='fast'?'rgba(255,80,110,.45)':'rgba(168,124,255,.3)';x.fillStyle=o.color;x.strokeStyle=o.kind==='fast'?'#ff8498':'#77869c';x.lineWidth=o.kind==='heavy'?2.2:1.5;poly(o.x,o.y,o.r,o.n,o.rot);x.fill();x.stroke();x.restore()}
+if(ship.shield){for(let q=0;q<ship.shield;q++){x.save();x.shadowBlur=22;x.shadowColor='#6ef3ff';x.strokeStyle=`rgba(110,243,255,${.82-q*.17})`;x.lineWidth=2;x.beginPath();x.arc(ship.x,ship.y,ship.r+9+q*5,0,6.28);x.stroke();x.restore()}}
+x.save();x.translate(ship.x,ship.y);x.shadowBlur=22;x.shadowColor='#6ef3ff';x.fillStyle='#8cf7ff';x.beginPath();x.moveTo(0,-20);x.lineTo(14,15);x.lineTo(0,9);x.lineTo(-14,15);x.closePath();x.fill();x.fillStyle='#a48bff';x.beginPath();x.moveTo(-6,13);x.lineTo(0,26+rnd(0,3));x.lineTo(6,13);x.closePath();x.fill();x.restore()}
+function loop(now){if(!running||paused)return;let dt=Math.min(.033,(now-last)/1000);last=now;let alive=update(dt,now);draw();if(alive&&running&&!paused)requestAnimationFrame(loop)}
 function steer(e){ship.tx=e.clientX;ship.ty=Math.max(85,e.clientY);hint.style.opacity=0}
-addEventListener('pointerdown',e=>{if(running)steer(e)},{passive:true});addEventListener('pointermove',e=>{if(running&&e.pressure!==0)steer(e)},{passive:true});
+addEventListener('pointerdown',e=>{if(running&&!paused)steer(e)},{passive:true});addEventListener('pointermove',e=>{if(running&&!paused&&e.pressure!==0)steer(e)},{passive:true});
 reset();draw();
 })();
 </script>
