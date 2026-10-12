@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#080d18" />
+<title>Orbit Rush</title>
+<style>
+:root{color-scheme:dark;--ink:#eef7ff;--muted:#9db1c7;--cyan:#6ef3ff;--violet:#a48bff;--gold:#ffd766}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#060a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none;overscroll-behavior:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;color:var(--ink);font-weight:850;text-shadow:0 2px 10px #000}
+.pill{min-width:92px;padding:8px 11px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(8,14,25,.52);backdrop-filter:blur(8px)}
+.pill.right{text-align:right}.label{display:block;color:var(--muted);font-size:10px;letter-spacing:.13em;text-transform:uppercase}.value{display:block;font-size:22px;line-height:1.05;margin-top:2px}
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(circle at 50% 30%,rgba(42,78,135,.3),rgba(4,7,13,.88));z-index:5}
+.card{width:min(430px,92vw);padding:24px;border:1px solid rgba(255,255,255,.13);border-radius:24px;background:rgba(8,14,25,.88);backdrop-filter:blur(16px);box-shadow:0 25px 80px rgba(0,0,0,.55);text-align:center}
+h1{font-size:34px;line-height:1;margin:0 0 10px;letter-spacing:.02em}.subtitle{margin:0 0 18px;color:#c6d5e5;line-height:1.45}.help{font-size:13px;color:var(--muted);line-height:1.45;margin-top:12px}
+button{width:100%;border:0;border-radius:16px;padding:15px 18px;font-size:18px;font-weight:900;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#07111c;box-shadow:0 9px 30px rgba(110,243,255,.2)}button:active{transform:scale(.985)}
+#hint{position:fixed;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.09);background:rgba(8,14,25,.62);color:#c9d7e6;font-size:12px;pointer-events:none;transition:opacity .3s}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"><div class="pill"><span class="label">Score</span><span class="value" id="score">0</span></div><div class="pill right"><span class="label">Best</span><span class="value" id="best">0</span></div></div>
+<div id="overlay"><div class="card" id="card"><h1>ORBIT RUSH</h1><p class="subtitle">Guide your ship through the asteroid field and collect stars. Survive as long as you can.</p><button id="play">PLAY</button><div class="help">Drag anywhere to steer. Gold stars add bonus points. Blue shields absorb one hit.</div></div></div>
+<div id="hint">Drag to steer</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),x=c.getContext('2d');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best');
+const overlay=document.getElementById('overlay'),card=document.getElementById('card'),play=document.getElementById('play'),hint=document.getElementById('hint');
+let W=0,H=0,D=1,last=0,running=false,t0=0,spawn=0,starSpawn=0,shieldSpawn=0,score=0;
+let best=+(localStorage.getItem('orbitRushBest')||0);bestEl.textContent=best;
+const ship={x:innerWidth/2,y:innerHeight*.78,tx:innerWidth/2,ty:innerHeight*.78,r:15,shield:0};
+let rocks=[],stars=[],pickups=[],dust=[];
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*D;c.height=H*D;c.style.width=W+'px';c.style.height=H+'px';x.setTransform(D,0,0,D,0,0);ship.x=Math.min(W-25,Math.max(25,ship.x));ship.y=Math.min(H-35,Math.max(90,ship.y))}
+addEventListener('resize',resize);resize();
+function rnd(a,b){return a+Math.random()*(b-a)}
+function reset(){rocks=[];stars=[];pickups=[];dust=[];score=0;spawn=0;starSpawn=.5;shieldSpawn=7;ship.x=W/2;ship.y=H*.78;ship.tx=ship.x;ship.ty=ship.y;ship.shield=0;scoreEl.textContent=0;for(let i=0;i<70;i++)dust.push({x:Math.random()*W,y:Math.random()*H,s:rnd(.5,2),v:rnd(15,55),a:rnd(.18,.75)})}
+function rock(){const r=rnd(15,34),edge=Math.random();rocks.push({x:rnd(r,W-r),y:-r-10,r,vy:rnd(150,230),vx:rnd(-35,35),rot:rnd(0,6.28),vr:rnd(-1.8,1.8),n:Math.floor(rnd(7,11))})}
+function star(){stars.push({x:rnd(24,W-24),y:-20,r:10,vy:rnd(130,180),rot:rnd(0,6.28)})}
+function shield(){pickups.push({x:rnd(28,W-28),y:-25,r:13,vy:140,p:0})}
+function hit(ax,ay,ar,bx,by,br){let dx=ax-bx,dy=ay-by;return dx*dx+dy*dy<(ar+br)*(ar+br)}
+function burst(px,py,n,type){for(let i=0;i<n;i++){let a=Math.random()*6.28,s=rnd(45,180);dust.push({x:px,y:py,s:rnd(1.2,3.4),v:0,vx:Math.cos(a)*s,vy:Math.sin(a)*s,a:1,life:rnd(.3,.75),type})}}
+function end(){running=false;let final=Math.floor(score);if(final>best){best=final;localStorage.setItem('orbitRushBest',best);bestEl.textContent=best}burst(ship.x,ship.y,25,'boom');draw();card.innerHTML=`<h1>${final>=best&&final>0?'NEW BEST':'GAME OVER'}</h1><p class="subtitle">Score: <b>${final}</b></p><button id="again">PLAY AGAIN</button><div class="help">The asteroid field speeds up over time.</div>`;overlay.style.display='flex';document.getElementById('again').onclick=start;if(navigator.vibrate)navigator.vibrate([35,35,70])}
+function start(){reset();running=true;t0=performance.now();last=t0;overlay.style.display='none';hint.style.opacity=1;requestAnimationFrame(loop)}
+play.onclick=start;
+function update(dt,now){const age=(now-t0)/1000,boost=Math.min(2.15,1+age/48);score+=dt*9*boost;scoreEl.textContent=Math.floor(score);ship.x+=(ship.tx-ship.x)*Math.min(1,dt*11);ship.y+=(ship.ty-ship.y)*Math.min(1,dt*11);ship.x=Math.max(20,Math.min(W-20,ship.x));ship.y=Math.max(80,Math.min(H-28,ship.y));
+spawn-=dt;if(spawn<=0){rock();if(Math.random()<Math.min(.5,age/55))rock();spawn=Math.max(.19,.62-age*.006)*rnd(.75,1.2)}
+starSpawn-=dt;if(starSpawn<=0){star();starSpawn=rnd(1.4,2.4)}shieldSpawn-=dt;if(shieldSpawn<=0){shield();shieldSpawn=rnd(11,17)}
+for(const d of dust){if(d.life!==undefined){d.life-=dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.vx*=.985;d.vy*=.985}else{d.y+=d.v*dt;if(d.y>H+3){d.y=-3;d.x=Math.random()*W}}}
+dust=dust.filter(d=>d.life===undefined||d.life>0);
+for(let i=rocks.length-1;i>=0;i--){let o=rocks[i];o.y+=o.vy*boost*dt;o.x+=o.vx*dt;o.rot+=o.vr*dt;if(hit(ship.x,ship.y,ship.r,o.x,o.y,o.r*.82)){rocks.splice(i,1);burst(o.x,o.y,16,'rock');if(ship.shield){ship.shield=0;score+=15;if(navigator.vibrate)navigator.vibrate(20)}else{end();return false}}else if(o.y>H+60)rocks.splice(i,1)}
+for(let i=stars.length-1;i>=0;i--){let s=stars[i];s.y+=s.vy*boost*dt;s.rot+=dt*2;if(hit(ship.x,ship.y,ship.r,s.x,s.y,s.r+2)){stars.splice(i,1);score+=25;burst(s.x,s.y,10,'star');if(navigator.vibrate)navigator.vibrate(12)}else if(s.y>H+30)stars.splice(i,1)}
+for(let i=pickups.length-1;i>=0;i--){let p=pickups[i];p.y+=p.vy*dt;p.p+=dt*4;if(hit(ship.x,ship.y,ship.r,p.x,p.y,p.r+2)){pickups.splice(i,1);ship.shield=1;burst(p.x,p.y,12,'shield');if(navigator.vibrate)navigator.vibrate(15)}else if(p.y>H+30)pickups.splice(i,1)}return true}
+function poly(cx,cy,r,n,rot){x.beginPath();for(let i=0;i<n;i++){let a=rot+i*6.283/n,rr=r*(.78+.2*Math.sin(i*2.7+rot));let px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath()}
+function draw(){x.clearRect(0,0,W,H);let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#081326');g.addColorStop(.6,'#07101c');g.addColorStop(1,'#04070c');x.fillStyle=g;x.fillRect(0,0,W,H);
+let neb=x.createRadialGradient(W*.25,H*.25,10,W*.25,H*.25,Math.max(W,H)*.55);neb.addColorStop(0,'rgba(74,91,190,.18)');neb.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=neb;x.fillRect(0,0,W,H);
+for(const d of dust){x.globalAlpha=Math.max(0,d.a*(d.life===undefined?1:Math.min(1,d.life*2)));x.fillStyle=d.type==='star'?'#ffd766':d.type==='shield'?'#6ef3ff':d.type==='boom'?'#ff8870':'#d9efff';x.beginPath();x.arc(d.x,d.y,d.s,0,6.28);x.fill()}x.globalAlpha=1;
+for(const s of stars){x.save();x.translate(s.x,s.y);x.rotate(s.rot);x.shadowBlur=18;x.shadowColor='#ffd766';x.fillStyle='#ffd766';x.beginPath();for(let i=0;i<10;i++){let a=-Math.PI/2+i*Math.PI/5,rr=i%2?4:s.r;let px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath();x.fill();x.restore()}
+for(const p of pickups){x.save();x.shadowBlur=22;x.shadowColor='#6ef3ff';x.strokeStyle='#6ef3ff';x.lineWidth=3;x.beginPath();x.arc(p.x,p.y,p.r+Math.sin(p.p)*2,0,6.28);x.stroke();x.fillStyle='rgba(110,243,255,.25)';x.beginPath();x.arc(p.x,p.y,p.r-3,0,6.28);x.fill();x.restore()}
+for(const o of rocks){x.save();x.shadowBlur=8;x.shadowColor='rgba(168,124,255,.35)';x.fillStyle='#374154';x.strokeStyle='#77869c';x.lineWidth=1.5;poly(o.x,o.y,o.r,o.n,o.rot);x.fill();x.stroke();x.restore()}
+if(ship.shield){x.save();x.shadowBlur=25;x.shadowColor='#6ef3ff';x.strokeStyle='rgba(110,243,255,.85)';x.lineWidth=2;x.beginPath();x.arc(ship.x,ship.y,ship.r+10,0,6.28);x.stroke();x.restore()}
+x.save();x.translate(ship.x,ship.y);x.shadowBlur=22;x.shadowColor='#6ef3ff';x.fillStyle='#8cf7ff';x.beginPath();x.moveTo(0,-20);x.lineTo(14,15);x.lineTo(0,9);x.lineTo(-14,15);x.closePath();x.fill();x.fillStyle='#a48bff';x.beginPath();x.moveTo(-6,13);x.lineTo(0,27+rnd(0,3));x.lineTo(6,13);x.closePath();x.fill();x.restore()}
+function loop(now){if(!running)return;let dt=Math.min(.033,(now-last)/1000);last=now;let alive=update(dt,now);draw();if(alive&&running)requestAnimationFrame(loop)}
+function steer(e){ship.tx=e.clientX;ship.ty=Math.max(85,e.clientY);hint.style.opacity=0}
+addEventListener('pointerdown',e=>{if(running)steer(e)},{passive:true});addEventListener('pointermove',e=>{if(running&&e.pressure!==0)steer(e)},{passive:true});
+reset();draw();
+})();
+</script>
+</body>
+</html>
