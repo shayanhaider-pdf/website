@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#070b13"><title>Orbit Rush V3: Salvage Fleet</title><link rel="stylesheet" href="style.css"></head><body><canvas id="game"></canvas>
+<div id="hud">
+  <div id="top"><div class="pill"><span class="label">Score</span><span class="value" id="score">0</span></div><div class="pill"><span class="label">Level</span><span class="value" id="level">1</span></div><div class="pill right"><span class="label">Auto Pulse</span><span class="value" id="weapon">OFF</span></div></div>
+  <div id="status"><div class="pill"><span class="hearts" id="hearts">♥♥♥</span> <span class="shield" id="shield"></span></div><div id="xpbox"><div id="xp"></div></div><div id="xpt">0/42</div></div>
+  <div id="bossHud"><div id="bossLabel"><span id="bossName">BOSS</span><span id="bossHpText">0/0</span></div><div id="bossBar"><div id="bossFill"></div></div></div>
+</div>
+<div class="overlay" id="start"><div class="card">
+  <h1>ORBIT RUSH V3: SALVAGE FLEET</h1>
+  <p class="sub" id="runSummary">Choose your chassis: FAST, STRONG, or VERSATILE. The three generated ship designs below are the actual in-game sprites.</p>
+  <div id="shipGrid">
+    <button class="shipCard" data-ship="needle"><span class="shipIcon"><img class="shipSprite" alt="Valkyrie Needle" data-art="needle"></span><span class="shipMeta"><b>Valkyrie Needle</b><span class="classBadge">FAST</span><small>A razor-fast interceptor built around twin drives and a tiny collision profile. Fragile, but extremely responsive.</small><em>SLIPSTREAM — every 10s, enters a 2.2s overdrive window with dramatically faster steering and tighter evasion.</em><strong>3 HULL · FASTEST · SMALL HITBOX</strong></span></button>
+    <button class="shipCard" data-ship="bastion"><span class="shipIcon"><img class="shipSprite" alt="Aegis Bastion" data-art="bastion"></span><span class="shipMeta"><b>Aegis Bastion</b><span class="classBadge">STRONG</span><small>A massive fortress craft with layered armor and high-output emitters. Slow to reposition but hard to break.</small><em>BULWARK FIELD — every 15s, clears nearby hazards and restores a shield charge.</em><strong>6 HULL · +1 BASE DAMAGE · HEAVY</strong></span></button>
+    <button class="shipCard" data-ship="nomad"><span class="shipIcon"><img class="shipSprite" alt="Scrapjack Nomad" data-art="nomad"></span><span class="shipMeta"><b>Scrapjack Nomad</b><span class="classBadge">VERSATILE</span><small>A salvaged junkship that turns whatever it finds into an advantage. Balanced handling with strong economy and utility.</small><em>SALVAGE PROTOCOL — every 12s repairs hull if needed, otherwise restores shield; at full defense it temporarily boosts collection and pulse cycling.</em><strong>4 HULL · +15% XP · MAGNET</strong></span></button>
+  </div>
+  <button id="play" disabled>CHOOSE A SHIP</button>
+  <div class="help">Auto Pulse still travels strictly straight upward. Bosses arrive every 4 levels and keep their distinct attack patterns.</div>
+</div></div>
+<div class="overlay" id="lvl"><div id="panel"><div style="text-align:center;font-size:24px;font-weight:950">LEVEL UP</div><div style="text-align:center;color:var(--muted);font-size:12px">Choose one upgrade</div><div id="choices"></div></div></div>
+<div id="banner"></div><div id="hint">Hold + drag to steer</div><script src="art-needle.js"></script><script src="art-bastion.js"></script><script src="art-nomad.js"></script><script src="game.js"></script></body></html>
