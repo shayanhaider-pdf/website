@@ -1,7 +1,9 @@
 
 (() => {
-  const STORAGE_KEY='clone_shift_v03';
+  const STORAGE_KEY='clone_shift_v04';
+  const ESSENTIAL={attack:1,scavenger:1,processor:1};
   const assetMap=window.CLONE_ASSETS;
+
   const roles=[
     {id:'attack',name:'Attack',desc:'Physical damage specialists.',group:'hunt',img:assetMap.attack},
     {id:'defense',name:'Defense',desc:'Reduce incoming squad damage.',group:'hunt',img:assetMap.defense},
@@ -9,7 +11,7 @@
     {id:'combat',name:'Combat',desc:'Train strength for better attack.',group:'train',img:assetMap.combat},
     {id:'conditioning',name:'Conditioning',desc:'Raise squad health and endurance.',group:'train',img:assetMap.conditioning},
     {id:'arcane',name:'Arcane',desc:'Improve all magical damage.',group:'train',img:assetMap.arcane},
-    {id:'scavenger',name:'Scavenging',desc:'Pull more loot from each kill.',group:'collect',img:assetMap.scavenger},
+    {id:'scavenger',name:'Scavenging',desc:'Increase loot recovered from defeated enemies.',group:'collect',img:assetMap.scavenger},
     {id:'processor',name:'Processing',desc:'Convert loot to credits faster.',group:'collect',img:assetMap.processor},
   ];
   const upgrades=[
@@ -44,7 +46,6 @@
   };
 
 
-
   let images={};
   const s=loadState() || freshState();
   buildRoleCards(); buildUpgradeCards(); bindUI();
@@ -54,32 +55,53 @@
 
   function freshState(){
     const st={
-      credits:55, loot:0, awakenings:0, stage:1, stars:0,
-      totalClones:2, maxClones:2, overdriveCd:0, overdriveLeft:0,
-      roles:{generalist:2,attack:0,defense:0,magic:0,combat:0,conditioning:0,arcane:0,scavenger:0,processor:0},
+      credits:0, loot:0, awakenings:0, stage:1, stars:0,
+      totalClones:4, maxClones:4, overdriveCd:0, overdriveLeft:0,
+      roles:{generalist:1,attack:1,defense:0,magic:0,combat:0,conditioning:0,arcane:0,scavenger:1,processor:1},
       roleXp:Object.fromEntries(roles.map(r=>[r.id,0])), roleLv:Object.fromEntries(roles.map(r=>[r.id,0])),
       trainXp:{combat:0,conditioning:0,arcane:0}, trainLv:{combat:0,conditioning:0,arcane:0},
       upgrades:Object.fromEntries(upgrades.map(u=>[u.id,0])),
       squadHp:100, battle:{enemy:null, nextTypes:[], kills:0, killsToBoss:7, boss:false},
+      metrics:{elapsed:0, samples:[], since:0},
       lastSave:Date.now()
     };
     return st;
   }
   function loadState(){
-    try{const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return null; const st=JSON.parse(raw); offlineTick(st); return st;}catch(e){return null}
+    try {
+      const previous=localStorage.getItem(STORAGE_KEY) || localStorage.getItem('clone_shift_v03');
+      if(!previous) return null;
+      const st=JSON.parse(previous);
+      if(!st || !st.roles || !st.upgrades || !st.battle) return null;
+      // Migration: preserve existing workers and purchases, add missing essential workers free.
+      for(const [role,min] of Object.entries(ESSENTIAL)){
+        const missing=Math.max(0,min-(st.roles[role]||0));
+        st.roles[role]=(st.roles[role]||0)+missing;
+        st.totalClones+=missing;
+        st.maxClones+=missing;
+      }
+      st.totalClones=Math.max(4,st.totalClones);
+      st.maxClones=Math.max(st.totalClones,st.maxClones,4);
+      st.roles.generalist=Math.max(0,st.roles.generalist||0);
+      if(!st.metrics || !Array.isArray(st.metrics.samples)) st.metrics={elapsed:0,samples:[],since:0};
+      else st.metrics={elapsed:0,samples:[],since:0};
+      offlineTick(st);
+      return st;
+    }catch(e){return null}
   }
-  function saveState(){s.lastSave=Date.now(); try{localStorage.setItem(STORAGE_KEY, JSON.stringify(s));}catch(e){/* Remain playable if storage is blocked */}}
-  function resetSave(){localStorage.removeItem(STORAGE_KEY); location.reload();}
+  function saveState(){s.lastSave=Date.now(); try{localStorage.setItem(STORAGE_KEY, JSON.stringify(s));}catch(e){/* Browsers with storage disabled remain playable */}}
+  function resetSave(){try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem('clone_shift_v03');}catch(e){}location.reload();}
   function offlineTick(st){
-    const dt=Math.min(60*20, Math.max(0,(Date.now()-(st.lastSave||Date.now()))/1000));
-    if(dt<=0) return;
-    // conservative offline: processing and role/training xp only
-    st.credits += Math.min(st.loot, processingRate(st)*dt) * creditValue(st);
-    st.loot = Math.max(0, st.loot - Math.min(st.loot, processingRate(st)*dt));
-    roles.forEach(r=>addRoleXp(st,r.id,(st.roles[r.id]||0)*dt*0.32));
-    ['combat','conditioning','arcane'].forEach(k=>addTrainingXp(st,k,(st.roles[k]||0)*dt*0.45));
+    const seconds=Math.min(20*60,Math.max(0,(Date.now()-(st.lastSave||Date.now()))/1000));
+    if(seconds<=0) return;
+    const rates=steadyRates(st);
+    const produced=Math.min(Math.max(0,storageCap(st)-(st.loot||0))+rates.convertRate*seconds, rates.lootPotential*seconds);
+    const processed=Math.min((st.loot||0)+produced, processingRate(st)*seconds);
+    st.loot=clamp((st.loot||0)+produced-processed,0,storageCap(st));
+    st.credits += processed*creditValue(st);
+    roles.forEach(r=>addRoleXp(st,r.id,(st.roles[r.id]||0)*seconds*0.32));
+    ['combat','conditioning','arcane'].forEach(k=>addTrainingXp(st,k,(st.roles[k]||0)*seconds*0.45));
   }
-
   function bindUI(){
     document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>setTab(btn.dataset.tab)));
     el('buyCloneBtn').addEventListener('click', buyClone);
@@ -101,6 +123,11 @@
     roles.forEach(r=>{
       const card=document.createElement('div'); card.className='role-card';
       card.innerHTML=`<img src="${r.img}" alt="${r.name} pixel role"><div class="role-main"><h3>${r.name}</h3><p>${r.desc}</p><div class="role-sub"><span class="tag">Assigned: <span id="count-${r.id}">0</span></span><span class="tag">Role Lv <span id="lvl-${r.id}">0</span></span></div></div><div class="role-actions"><div class="stepper"><button data-minus="${r.id}">−</button><strong id="mini-${r.id}">0</strong><button data-plus="${r.id}">+</button></div><div class="tag" id="xp-${r.id}">0 / 12 XP</div></div>`;
+      const minus=card.querySelector('[data-minus]');
+      if(ESSENTIAL[r.id]){
+        card.querySelector('.role-sub').insertAdjacentHTML('beforeend','<span class="tag">Core worker · min 1</span>');
+        minus.title='This role needs at least one worker to maintain the economy';
+      }
       host.appendChild(card);
     });
   }
@@ -113,7 +140,7 @@
     });
   }
 
-  function cloneCost(st=s){ return Math.ceil(60 * Math.pow(1.58, st.maxClones-2)); }
+  function cloneCost(st=s){ return Math.ceil(80 * Math.pow(1.58, Math.max(0,st.maxClones-4))); }
   function buyClone(){
     const cost=cloneCost();
     if(s.credits < cost) return;
@@ -121,7 +148,7 @@
   }
   function assignRole(id, delta){
     if(delta>0){ if(s.roles.generalist<=0) return; s.roles.generalist--; s.roles[id]++; }
-    else { if(s.roles[id]<=0) return; s.roles[id]--; s.roles.generalist++; }
+    else { if(s.roles[id]<=(ESSENTIAL[id]||0)) return; s.roles[id]--; s.roles.generalist++; }
     renderAll();
   }
   function buyUpgrade(id){
@@ -152,20 +179,37 @@
   function blockPct(st=s){ const def=((st.roles.defense||0)*0.08*roleBonus('defense',st)) + st.upgrades.block*0.08; return clamp(def,0,0.72); }
   function maxHp(st=s){ const base=84*(1+st.upgrades.armor*0.24); const cond=((st.roles.conditioning||0)*0.18*roleBonus('conditioning',st)); return Math.round(base*(1+cond+st.trainLv.conditioning*0.04)); }
   function storageCap(st=s){ return 24 + st.upgrades.storage*18; }
-  function processingRate(st=s){ return (((st.roles.processor||0)*1.15*roleBonus('processor',st)) + (st.roles.generalist||0)*0.12) * (1+st.upgrades.processors*0.30); }
+  function processingRate(st=s){ return (((st.roles.processor||0)*1.50*roleBonus('processor',st)) + (st.roles.generalist||0)*0.08) * (1+st.upgrades.processors*0.30); }
   function lootYield(st=s){ return 1 + ((st.roles.scavenger||0)*0.18*roleBonus('scavenger',st)) + st.upgrades.scavenging*0.16; }
   function creditValue(st=s){ return Math.floor(4 * Math.pow(1.34, st.stage-1)); }
   function attackStrength(st=s){ return totalDps(st); }
 
-  function theoreticalEnemy(){
-    const idx=Math.min(s.stage-1, enemyPools.length-1); const pool=enemyPools[idx];
-    const enemy=pool[0]; return {avgHp: enemy.hp*Math.pow(1.27,s.stage-1), avgDrop: enemy.drop};
+  // Resource economics use the exact same flow calculation as the combat simulation.
+  // Enemy loot is proportionally recovered while the enemy takes real damage;
+  // a defeat completes the drop. There is no separate duplicate kill payout.
+  function steadyRates(st=s){
+    const enemy=st.battle?.enemy || {maxHp:28,drop:3};
+    const lootPotential=totalDps(st) * (enemy.drop/enemy.maxHp) * lootYield(st);
+    const cap=processingRate(st);
+    const convertRate=Math.min(cap,lootPotential + (st.loot||0)/5);
+    return {lootPotential,convertRate,creditPotential:convertRate*creditValue(st)};
   }
-  function lootPerSec(st=s){
-    const e=theoreticalEnemy(); if(totalDps(st)<=0) return 0; const kills=(totalDps(st)/e.avgHp); return kills*e.avgDrop*lootYield(st);
+  function observedRates(st=s){
+    const samples=st.metrics?.samples || [];
+    const sum=samples.reduce((acc,x)=>{acc.seconds+=x.dt;acc.loot+=x.loot;acc.credits+=x.credits;return acc;},{seconds:0,loot:0,credits:0});
+    // Starting display uses the same combat formula, then switches to actual
+    // measured outputs as soon as enough simulation time has elapsed.
+    if(sum.seconds<0.15){const p=steadyRates(st);return {loot:p.lootPotential,credits:p.creditPotential};}
+    return {loot:sum.loot/sum.seconds,credits:sum.credits/sum.seconds};
   }
-  function creditsPerSec(st=s){ return Math.min(lootPerSec(st), processingRate(st)) * creditValue(st); }
-
+  function recordFlow(dt,loot,credits){
+    const m=s.metrics;
+    m.elapsed+=dt;
+    m.samples.push({dt,loot,credits,end:m.elapsed});
+    while(m.samples.length && m.samples[0].end < m.elapsed - 5) m.samples.shift();
+  }
+  function lootPerSec(st=s){return observedRates(st).loot;}
+  function creditsPerSec(st=s){return observedRates(st).credits;}
   function ensureEnemy(){ if(!s.battle.enemy){ queueEnemies(); spawnEnemy(); s.squadHp=maxHp(); } if(s.squadHp>maxHp()) s.squadHp=maxHp(); }
   function queueEnemies(){
     const idx=Math.min(s.stage-1, enemyPools.length-1); const pool=enemyPools[idx];
@@ -181,19 +225,18 @@
     s.battle.enemy={type:tpl.type,name:tpl.name,maxHp:Math.round(tpl.hp*scale),hp:Math.round(tpl.hp*scale),atk:tpl.atk*(1+(s.stage-1)*0.14),drop:tpl.drop};
   }
   function onEnemyDefeated(){
-    const gain=Math.floor(s.battle.enemy.drop * lootYield());
-    s.loot = Math.min(storageCap(), s.loot + gain);
     if(s.battle.boss){
-      s.stage = Math.min(stageNames.length, s.stage+1);
-      s.stars = Math.min(5, s.stars+1);
-      s.battle.kills=0; s.battle.boss=false; queueEnemies();
-      // awakening every full cycle through stages
-      if(s.stage===stageNames.length && s.stars>=5){ s.awakenings += 1; s.stars = 0; }
-    } else {
+      if(s.stage<stageNames.length) s.stage++;
+      s.stars=Math.min(5,s.stars+1);
+      s.battle.kills=0;
+      s.battle.boss=false;
+      queueEnemies();
+    }else{
       s.battle.kills++;
-      if(s.battle.kills >= s.battle.killsToBoss){ s.battle.boss=true; }
+      if(s.battle.kills>=s.battle.killsToBoss) s.battle.boss=true;
     }
     spawnEnemy();
+    s.squadHp=maxHp();
   }
   function activateOverdrive(){ if(s.overdriveCd>0) return; s.overdriveCd=20; s.overdriveLeft=8; }
 
@@ -206,21 +249,42 @@
   }
   function tick(dt){
     ensureEnemy();
-    // cooldowns
-    s.overdriveCd=Math.max(0,s.overdriveCd-dt); s.overdriveLeft=Math.max(0,s.overdriveLeft-dt);
-    // xp accumulation
+    s.overdriveCd=Math.max(0,s.overdriveCd-dt);
+    s.overdriveLeft=Math.max(0,s.overdriveLeft-dt);
     roles.forEach(r=>addRoleXp(s,r.id,(s.roles[r.id]||0)*dt*0.32));
     ['combat','conditioning','arcane'].forEach(k=>addTrainingXp(s,k,(s.roles[k]||0)*dt*0.45));
-    // processing
-    const proc=Math.min(s.loot, processingRate()*dt); s.loot-=proc; s.credits+=proc*creditValue();
-    // battle
-    const enemy=s.battle.enemy; if(!enemy) return;
-    enemy.hp -= totalDps()*dt;
-    s.squadHp -= enemy.atk*(1-blockPct())*dt;
-    if(s.squadHp<=0){ s.squadHp=maxHp(); enemy.hp=enemy.maxHp; }
-    if(enemy.hp<=0){ onEnemyDefeated(); }
+    // Convert existing loot first, freeing storage for new recovered loot.
+    let converted=Math.min(s.loot,processingRate()*dt);
+    s.loot-=converted;
+    let generated=0;
+    let remainingDamage=totalDps()*dt;
+    let fights=0;
+    while(remainingDamage>0 && fights<40){
+      const enemy=s.battle.enemy;
+      const damage=Math.min(enemy.hp,remainingDamage);
+      const potential=damage*(enemy.drop/enemy.maxHp)*lootYield();
+      const accepted=Math.min(potential,Math.max(0,storageCap()-s.loot));
+      s.loot+=accepted; generated+=accepted;
+      enemy.hp-=damage;
+      remainingDamage-=damage;
+      if(enemy.hp<=0.000001){onEnemyDefeated();fights++;}
+      else break;
+    }
+    // Convert newly dropped loot with any spare processing capacity this tick.
+    const extra=Math.min(s.loot,Math.max(0,processingRate()*dt-converted));
+    s.loot-=extra;converted+=extra;
+    const credits=converted*creditValue();
+    s.credits+=credits;
+    recordFlow(dt,generated,credits);
+    // Squad retreat restores the previous economy instead of trapping players
+    // in an unbeatable boss fight.
+    s.squadHp-=s.battle.enemy.atk*(1-blockPct())*dt;
+    if(s.squadHp<=0){
+      s.squadHp=maxHp();
+      if(s.battle.boss){s.battle.boss=false;s.battle.kills=0;}
+      spawnEnemy();
+    }
   }
-
   function renderAll(){ renderStatic(); renderDynamic(); }
   function renderStatic(){
     document.querySelectorAll('.role-card img').forEach(()=>{});
@@ -231,13 +295,16 @@
     const cps=creditsPerSec(); const cost=cloneCost();
     el('homeGate').textContent=`Stage ${s.stage} · ${stageNames[s.stage-1]}`;
     el('stageStars').textContent='★★★★★'.slice(0,s.stars) + '☆☆☆☆☆'.slice(0,5-s.stars);
-    el('creditsHome').textContent=fmt(s.credits); el('creditsPerSec').textContent=`+${fmt(cps)} / sec`;
+    el('creditsHome').textContent=fmt(s.credits); el('creditsPerSec').textContent=`+${fmt(cps)} / sec · 5s actual`;
+    el('globalDps').textContent=fmt(totalDps());
+    el('globalLoot').textContent=fmt(lootPerSec());
+    el('globalCredits').textContent=fmt(cps);
     el('cloneCountHome').textContent=`${s.totalClones} / ${s.maxClones}`;
     el('freeGeneralists').textContent=s.roles.generalist;
     el('cloneAffordEta').textContent=fmtTime(cps>0 ? Math.max(0,(cost-s.credits)/cps):Infinity);
     el('nextCloneCost').textContent=fmt(cost);
     el('buyCloneBtn').disabled = s.credits < cost;
-    el('lootPerSec').textContent=`${fmt(lootPerSec())} / sec`;
+    el('lootPerSec').textContent=`${fmt(lootPerSec())} / sec · 5s actual`;
     el('lootStorage').textContent=`${fmt(s.loot)} / ${storageCap()}`;
     el('processingSpeed').textContent=`${fmt(processingRate())} / sec`;
     el('dpsHome').textContent=fmt(totalDps());
@@ -255,7 +322,7 @@
 
     // train
     el('trainFreeGeneralists').textContent=s.roles.generalist;
-    roles.forEach(r=>{ el(`count-${r.id}`).textContent=s.roles[r.id]; el(`mini-${r.id}`).textContent=s.roles[r.id]; el(`lvl-${r.id}`).textContent=s.roleLv[r.id]; el(`xp-${r.id}`).textContent=`${s.roleXp[r.id].toFixed(1)} / 12 XP`; });
+    roles.forEach(r=>{ el(`count-${r.id}`).textContent=s.roles[r.id]; el(`mini-${r.id}`).textContent=s.roles[r.id]; el(`lvl-${r.id}`).textContent=s.roleLv[r.id]; el(`xp-${r.id}`).textContent=`${s.roleXp[r.id].toFixed(1)} / 12 XP`; const minus=document.querySelector(`[data-minus=\"${r.id}\"]`); if(minus)minus.disabled=s.roles[r.id]<=(ESSENTIAL[r.id]||0); });
     const tHost=el('trainingLevels'); tHost.innerHTML='';
     [['combat','Combat Training'],['conditioning','Conditioning'],['arcane','Arcane Training']].forEach(([k,label])=>{ const row=document.createElement('div'); row.className='level-row'; row.innerHTML=`<div class="left"><strong>${label}</strong><small>${s.trainXp[k].toFixed(1)} / 10 XP</small></div><div class="tag">Lv ${s.trainLv[k]}</div>`; tHost.appendChild(row); });
 
@@ -263,6 +330,7 @@
     el('upgradeCredits').textContent=fmt(s.credits);
   }
 
+  window.__CLONE_SHIFT_TEST__={state:s,tick,derived:{totalDps,lootPerSec,creditsPerSec,processingRate,cloneCost},assignRole,buyClone,buyUpgrade,resetSave};
   async function loadAssets(){
     const srcs=Object.keys(assetMap);
     await Promise.all(srcs.map(name=>new Promise(res=>{const img=new Image(); img.onload=()=>{images[name]=img;res();}; img.src=assetMap[name]; })));
