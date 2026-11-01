@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#1b1815">
-  <title>Clone Shift v0.3</title>
-  <link rel="stylesheet" href="./style.css?v=03">
+  <title>Clone Shift v0.4</title>
+  <link rel="stylesheet" href="./style.css?v=04">
 </head>
 <body>
-<div class="app">
+<div class="app"><div class="rate-hud" aria-label="Live production rates"><div><span>⚔ DPS</span><strong id="globalDps">0</strong></div><div><span>◆ Loot/s</span><strong id="globalLoot">0</strong></div><div><span>◉ Credits/s</span><strong id="globalCredits">0</strong></div></div>
   <section class="screen active" id="screen-home">
     <header class="home-header">
       <div>
@@ -24,7 +24,7 @@
         <div class="metric-block credits">
           <label>Credits</label>
           <strong id="creditsHome">0</strong>
-          <small id="creditsPerSec">+0 / sec</small>
+          <small id="creditsPerSec">+0 / sec · recent 5s</small>
         </div>
         <div class="metric-block clones-block">
           <label>Clone Workforce</label>
@@ -40,10 +40,10 @@
         <button id="buyCloneBtn" class="pixel-btn large">+1 Clone</button>
       </div>
 
-      <div class="home-grid">
+      <p class="micro-info">Loot and Credits per second are measured from the actual last 5 seconds of production.</p><div class="home-grid">
         <div class="metric-card wide">
           <div class="card-title">Loot Flow</div>
-          <div class="flow-line"><span>Loot gain</span><strong id="lootPerSec">0 / sec</strong></div>
+          <div class="flow-line"><span>Loot gain</span><strong id="lootPerSec">0 / sec · recent 5s</strong></div>
           <div class="flow-line"><span>Storage</span><strong id="lootStorage">0 / 0</strong></div>
           <div class="flow-line"><span>Processing</span><strong id="processingSpeed">0 / sec</strong></div>
         </div>
@@ -97,7 +97,7 @@
         <div class="eyebrow">TRAIN</div>
         <h2>Role Assignment</h2>
       </div>
-      <div class="small-pill">Free Generalists: <span id="trainFreeGeneralists">0</span></div>
+      <div class="small-pill">Free Generalists: <span id="trainFreeGeneralists">1</span></div>
     </header>
     <section class="role-list" id="roleList"></section>
     <section class="training-block panelish">
@@ -125,7 +125,7 @@
   <button class="nav-btn" data-tab="upgrades">Upgrades</button>
 </nav>
 
-<script src="./assets-v03.js?v=03"></script>
-<script src="./game.js?v=03"></script>
+<script src="./assets-v03.js?v=04"></script>
+<script src="./game.js?v=04"></script>
 </body>
 </html>
