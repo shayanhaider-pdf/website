@@ -1,11 +1,131 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#0a1020"/><title>Clone Shift | Idle Hunter</title><link rel="stylesheet" href="./style.css"></head>
-<body><div class="app" id="app">
-<header class="topbar"><div class="brand"><div class="logo">✧</div><div><div class="overline">AN IDLE HUNTER GAME</div><h1>CLONE<span>SHIFT</span></h1></div></div><div class="top-actions"><span class="pill" id="awakenings">✦ 0 Awakenings</span><button class="secondary small" data-action="pause" id="pauseButton" title="Pause game">Ⅱ Pause</button><button class="secondary small" data-action="help" title="How to play">? Guide</button></div></header>
-<div class="stats"><div class="stat"><span class="stat-label">CREDITS</span><strong id="credits">38</strong><span class="stat-note" id="creditRate">+0 / sec</span></div><div class="stat"><span class="stat-label">CLONES</span><strong id="clones">5 / 10</strong><span class="stat-note" id="cloneRate">Next in 12s</span></div><div class="stat"><span class="stat-label">LOOT STORAGE</span><strong id="loot">0 / 24</strong><span class="stat-note" id="storageState">Collecting steadily</span></div><div class="stat"><span class="stat-label">GATE PROGRESS</span><strong id="stageLabel">1 / 3</strong><span class="stat-note" id="gateProgress">0/4 encounters</span></div></div>
-<main class="columns"><div class="left-col"><section class="panel battlefield"><div class="section-title"><div><span class="eyebrow">DIMENSIONAL GATE</span><h2 id="gateTitle">Gate 01 · Shadow Alley</h2></div><span class="status" id="combatStatus">IDLE</span></div><div class="battle-art"><canvas id="battle" width="480" height="200" aria-label="Pixel-art combat: clone squad on left, monster on right"></canvas><div class="pixel-credit">AUTOMATED COMBAT · PIXEL ART STUDY</div></div><div class="combat-bars"><div class="bar-head"><span>CLONE SQUAD</span><span id="healthLabel">100 / 100 HP</span></div><div class="bar"><div id="healthBar" class="fill hp" style="width:100%"></div></div><div class="bar-head"><span id="enemyTitle">GATE MONSTER</span><span id="enemyLabel">100 / 100 HP</span></div><div class="bar"><div id="enemyBar" class="fill enemy" style="width:100%"></div></div></div><div class="battle-bottom"><div><span class="metric-number" id="dps">0</span><span class="metric-label"> TOTAL DPS</span><span class="sep">·</span><span class="metric-number" id="damageBlock">0%</span><span class="metric-label"> DAMAGE BLOCKED</span></div><button class="primary" data-action="challenge" id="challengeButton" hidden>Challenge Guardian →</button><button class="primary" data-action="awaken" id="awakenButton" hidden>✦ Awaken · Start New Cycle</button></div></section>
-<section class="panel actions-panel"><div class="section-title"><div><span class="eyebrow">ACTIVE COMMANDS</span><h2>Give your clones a push</h2></div></div><div class="action-grid"><button class="action-button" data-action="summon" id="summonButton"><span class="action-icon blue">✦</span><span><b>Summon clone</b><small id="summonSub">+1 Generalist · Available</small></span></button><button class="action-button" data-action="burst" id="burstButton"><span class="action-icon orange">⚡</span><span><b>Overdrive</b><small id="burstSub">Double damage · 10 sec</small></span></button></div></section>
-<section class="panel workforce"><div class="section-title"><div><span class="eyebrow">YOUR WORKFORCE</span><h2>Clone assignments</h2></div><button class="secondary small" data-action="all-generalist">↺ Unassign all</button></div><p class="panel-intro">Generalists contribute a little to every task. Specialized clones focus on one skill with <b>35% more total work output</b>.</p><div class="unassigned"><div><div class="job-icon generalist">♙</div><div><b>Generalists</b><small>Working on everything at once</small></div></div><strong id="generalists">5</strong></div><div id="jobs"></div></section>
-</div><aside class="right-col"><section class="panel upgrades"><div class="section-title"><div><span class="eyebrow">TYCOON UPGRADES</span><h2>Grow your operation</h2></div><span class="shop-badge">CREDITS</span></div><div id="upgrades"></div></section><section class="panel training-panel"><div class="section-title"><div><span class="eyebrow">SHARED PROGRESSION</span><h2>Training levels</h2></div></div><div id="trainingLevels"></div><p class="small-note">Training benefits every clone. Levels reset on Awakening.</p></section><section class="panel activity"><div class="section-title"><div><span class="eyebrow">OPERATIONS LOG</span><h2>Latest events</h2></div></div><ul id="eventLog"></ul></section></aside></main><footer>CLONE SHIFT · PROTOTYPE 0.1 · AUTOMATIC LOCAL SAVES · ORIGINAL PLACEHOLDER PIXEL SPRITES</footer>
-<div class="overlay" id="introOverlay"><div class="modal intro"><div class="intro-emblem">✧</div><span class="eyebrow">YOUR POWER HAS AWAKENED</span><h2>Why do the work<br/>when you can <em>clone yourself?</em></h2><p>You have five clones and one extraordinary ability. Turn an ordinary squad into an automated hunting empire.</p><div class="intro-features"><span>✦ Summon</span><span>⚔ Specialize</span><span>◇ Profit</span><span>✧ Awaken</span></div><button class="primary big" data-action="start">Enter the first gate →</button></div></div>
-<div class="overlay hidden" id="helpOverlay"><div class="modal help"><button class="modal-close" data-action="close-help">✕</button><span class="eyebrow">QUICK GUIDE</span><h2>How to play</h2><p><b>1.</b> Clones begin as Generalists. Assign them to one of eight jobs with the <b>+</b> buttons.</p><p><b>2.</b> Attack and Magic deal damage, while Defense helps the squad survive. Trainers grow shared stats.</p><p><b>3.</b> Hunting earns loot, Scavenging increases loot yield, and Processing converts it into Credits.</p><p><b>4.</b> Buy upgrades, clear three stages, challenge the Gate Guardian, and Awaken for a permanent damage bonus.</p><p class="small-note">Progress saves in this browser. Closing the tab simulates up to 30 minutes of offline progress on your next visit.</p><button class="primary" data-action="close-help">Got it</button></div></div>
-<div id="toast" class="toast hidden"></div></div><script src="./game.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1b1815">
+  <title>Clone Shift v0.3</title>
+  <link rel="stylesheet" href="./style.css?v=03">
+</head>
+<body>
+<div class="app">
+  <section class="screen active" id="screen-home">
+    <header class="home-header">
+      <div>
+        <div class="eyebrow">CLONE SHIFT · HUNTER HQ</div>
+        <h1>Shadow Gate Operations</h1>
+        <div class="subline"><span id="homeGate">Stage 1 · Ruined Atrium</span><span id="stageStars" class="stars">★☆☆☆☆</span></div>
+      </div>
+      <button id="resetSave" class="icon-btn" title="Reset save">⟲</button>
+    </header>
+
+    <section class="home-board">
+      <div class="hud-row major">
+        <div class="metric-block credits">
+          <label>Credits</label>
+          <strong id="creditsHome">0</strong>
+          <small id="creditsPerSec">+0 / sec</small>
+        </div>
+        <div class="metric-block clones-block">
+          <label>Clone Workforce</label>
+          <strong id="cloneCountHome">2 / 2</strong>
+          <small id="cloneAffordEta">Next clone available now</small>
+        </div>
+      </div>
+      <div class="clone-purchase-row">
+        <div>
+          <div class="purchase-label">Buy +1 clone capacity and clone</div>
+          <div class="purchase-meta">Cost: <span id="nextCloneCost">0</span> Credits · Free generalists: <span id="freeGeneralists">0</span></div>
+        </div>
+        <button id="buyCloneBtn" class="pixel-btn large">+1 Clone</button>
+      </div>
+
+      <div class="home-grid">
+        <div class="metric-card wide">
+          <div class="card-title">Loot Flow</div>
+          <div class="flow-line"><span>Loot gain</span><strong id="lootPerSec">0 / sec</strong></div>
+          <div class="flow-line"><span>Storage</span><strong id="lootStorage">0 / 0</strong></div>
+          <div class="flow-line"><span>Processing</span><strong id="processingSpeed">0 / sec</strong></div>
+        </div>
+        <div class="metric-card">
+          <div class="card-title">Combat Output</div>
+          <div class="power-number" id="dpsHome">0</div>
+          <div class="power-sub">damage / sec</div>
+        </div>
+        <div class="metric-card">
+          <div class="card-title">Squad HP</div>
+          <div class="power-number" id="hpHome">0 / 0</div>
+          <div class="power-sub" id="blockHome">0% blocked</div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section class="screen" id="screen-attack">
+    <header class="section-header minimal">
+      <div>
+        <div class="eyebrow">ATTACK</div>
+        <h2 id="attackGateTitle">Stage 1 · Ruined Atrium</h2>
+      </div>
+      <div class="battle-state" id="battleState">Hunting</div>
+    </header>
+    <section class="battle-shell panelish">
+      <canvas id="battleCanvas" width="368" height="248" aria-label="Pokemon-style pixel battle scene"></canvas>
+      <div class="bar-stack">
+        <div class="battle-side">
+          <div class="battle-label">Clone Squad</div>
+          <div class="bar"><div class="fill hp" id="squadBar"></div></div>
+          <div class="bar-text" id="squadHpText">0 / 0</div>
+        </div>
+        <div class="battle-side enemy-side">
+          <div class="battle-label" id="enemyLabel">Enemy</div>
+          <div class="bar"><div class="fill enemy" id="enemyBar"></div></div>
+          <div class="bar-text" id="enemyHpText">0 / 0</div>
+        </div>
+      </div>
+      <div class="battle-under">
+        <div class="under-stat"><span>DPS</span><strong id="attackDps">0</strong></div>
+        <div class="under-stat"><span>Loot/sec</span><strong id="attackLootRate">0</strong></div>
+        <button id="overdriveBtn" class="pixel-btn">Overdrive</button>
+      </div>
+    </section>
+  </section>
+
+  <section class="screen" id="screen-train">
+    <header class="section-header">
+      <div>
+        <div class="eyebrow">TRAIN</div>
+        <h2>Role Assignment</h2>
+      </div>
+      <div class="small-pill">Free Generalists: <span id="trainFreeGeneralists">0</span></div>
+    </header>
+    <section class="role-list" id="roleList"></section>
+    <section class="training-block panelish">
+      <div class="card-title">Shared Training Levels</div>
+      <div class="training-levels" id="trainingLevels"></div>
+    </section>
+  </section>
+
+  <section class="screen" id="screen-upgrades">
+    <header class="section-header">
+      <div>
+        <div class="eyebrow">UPGRADES</div>
+        <h2>Power Ups</h2>
+      </div>
+      <div class="small-pill">Credits: <span id="upgradeCredits">0</span></div>
+    </header>
+    <section class="upgrade-list" id="upgradeList"></section>
+  </section>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-tab="home">Home</button>
+  <button class="nav-btn" data-tab="attack">Attack</button>
+  <button class="nav-btn" data-tab="train">Train</button>
+  <button class="nav-btn" data-tab="upgrades">Upgrades</button>
+</nav>
+
+<script src="./assets-v03.js?v=03"></script>
+<script src="./game.js?v=03"></script>
+</body>
+</html>
