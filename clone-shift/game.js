@@ -1,182 +1,304 @@
 
-const JOBS = [
-  {id:'attack',name:'Attack',group:'hunting',icon:'⚔',desc:'Physical damage'},
-  {id:'defense',name:'Defense',group:'hunting',icon:'⬡',desc:'Guard and squad HP'},
-  {id:'magic',name:'Magic',group:'hunting',icon:'✦',desc:'Automatic arcane damage'},
-  {id:'combat',name:'Combat',group:'training',icon:'◆',desc:'Train physical damage'},
-  {id:'conditioning',name:'Conditioning',group:'training',icon:'♥',desc:'Train squad health'},
-  {id:'arcane',name:'Arcane',group:'training',icon:'✧',desc:'Train magic damage'},
-  {id:'scavenge',name:'Scavenging',group:'collecting',icon:'◈',desc:'More loot per monster'},
-  {id:'process',name:'Processing',group:'collecting',icon:'▣',desc:'Turn loot into Credits'}
-];
-const UPGRADE_DEFS = [
-  {id:'power',name:'Combat Gear',desc:'+25% physical and magic damage',base:24,scale:1.78},
-  {id:'capacity',name:'Echo Chamber',desc:'+4 maximum clones',base:58,scale:2.10},
-  {id:'process',name:'Processing Tools',desc:'+35% processing speed',base:38,scale:1.78},
-  {id:'scavenge',name:'Loot Scanner',desc:'+20% loot recovered',base:32,scale:1.85},
-  {id:'training',name:'Practice Grounds',desc:'+25% training speed',base:40,scale:1.85},
-  {id:'growth',name:'Echo Generator',desc:'+25% clone generation speed',base:45,scale:1.90},
-  {id:'storage',name:'Storage Racks',desc:'+20 stored loot',base:33,scale:1.72}
-];
-const MAX_STAGE=3;
-const R= x=>Math.round(x*100000)/100000;
-const countClones=s=>Object.values(s.jobs).reduce((a,b)=>a+b,0);
-const capacity=s=>10+s.upgrades.capacity*4;
-const cost=(s,id)=>{const d=UPGRADE_DEFS.find(x=>x.id===id);return d?Math.ceil(d.base*d.scale**s.upgrades[id]):Infinity;};
-const contribution=(s,id)=>0.12*s.jobs.generalist+1.3*s.jobs[id];
-const trainLevel=(s,id)=>Math.min(40,Math.floor(s.training[id]));
-function createInitialState(awakenings=0){
-  return {version:1,started:false,paused:false,finished:false,awakenings,credits:38,loot:0,stage:1,kills:0,bossReady:false,bossActive:false,
-  jobs:Object.fromEntries(['generalist',...JOBS.map(j=>j.id)].map(k=>[k,k==='generalist'?5:0])),
-  upgrades:Object.fromEntries(UPGRADE_DEFS.map(d=>[d.id,0])),
-  training:{combat:0,conditioning:0,arcane:0},
-  health:0,enemy:null,spawnDelay:0,retreat:0,cloneTimer:0,manualCooldown:0,burstRemaining:0,burstCooldown:0,
-  totals:{earned:0,kills:0},events:['Your clone operation is ready.'],elapsed:0};
-}
-function addEvent(s,message){s.events.unshift(message);s.events=s.events.slice(0,5);}
-function metrics(s){
- const atk=contribution(s,'attack'),def=contribution(s,'defense'),mag=contribution(s,'magic');
- const trainCombat=trainLevel(s,'combat'),trainCondition=trainLevel(s,'conditioning'),trainMagic=trainLevel(s,'arcane');
- const awaken=1+s.awakenings*0.12;
- const damageMultiplier=(1+s.upgrades.power*0.25)*awaken;
- const damage=(2+atk*7.2)*(1+trainCombat*0.055)*damageMultiplier;
- const magicDamage=mag*8.6*(1+trainMagic*0.065)*damageMultiplier;
- const healthMax=(70+def*28)*(1+trainCondition*0.08);
- const mitigation=Math.min(0.58,def*0.10);
- const trainingRate=(1+s.upgrades.training*0.25)*(1+s.awakenings*0.06)/10;
- const lootFactor=(1+contribution(s,'scavenge')*0.18)*(1+s.upgrades.scavenge*0.20);
- const processRate=(0.18+contribution(s,'process')*0.95)*(1+s.upgrades.process*0.35);
- const storageMax=24+s.upgrades.storage*20;
- const cloneInterval=12/(1+s.upgrades.growth*0.25)/(1+s.awakenings*.08);
- const price=Math.max(1,Math.floor(7*Math.pow(1.48,s.stage-1)));
- return {damage,magicDamage,dps:(damage+magicDamage)*(s.burstRemaining>0?2:1),healthMax,mitigation,trainingRate,lootFactor,processRate,storageMax,cloneInterval,price,atk,def,mag};
-}
-function makeEnemy(s,isBoss=false){
- const hp=Math.round(120*Math.pow(1.64,s.stage-1)*(isBoss?4.8:1));
- return {hp,maxHp:hp,isBoss,damage:6*Math.pow(1.18,s.stage-1)*(isBoss?1.5:1),attackTimer:0};
-}
-function start(s){if(s.started)return; s.started=true;s.health=metrics(s).healthMax; s.enemy=makeEnemy(s);addEvent(s,'Your clones entered the first gate.');}
-function reassign(s,job,delta){
- if(job!=='generalist'&&!JOBS.some(j=>j.id===job))return false;
- if(delta>0){if(s.jobs.generalist<1||job==='generalist')return false;s.jobs.generalist--;s.jobs[job]++;}
- else {if(s.jobs[job]<1||job==='generalist')return false;s.jobs[job]--;s.jobs.generalist++;}
- s.health=Math.min(s.health,metrics(s).healthMax);return true;
-}
-function buy(s,id){if(!s.started||s.finished)return false;const price=cost(s,id);if(s.credits+1e-9<price)return false;s.credits-=price;s.upgrades[id]++;addEvent(s,`${UPGRADE_DEFS.find(x=>x.id===id).name} upgraded.`);return true;}
-function summon(s){if(!s.started||s.finished||s.paused||s.manualCooldown>0||countClones(s)>=capacity(s))return false;s.jobs.generalist++;s.manualCooldown=6;addEvent(s,'A fresh clone joins as a Generalist.');return true;}
-function burst(s){if(!s.started||s.finished||s.paused||s.burstCooldown>0)return false;s.burstRemaining=10;s.burstCooldown=60;addEvent(s,'Overdrive activated: double damage!');return true;}
-function challenge(s){if(!s.bossReady||s.bossActive||s.finished)return false;s.bossReady=false;s.bossActive=true;s.enemy=makeEnemy(s,true);s.health=metrics(s).healthMax;addEvent(s,'Gate Guardian appears!');return true;}
-function awaken(s){if(!s.finished)return false;const next=createInitialState(s.awakenings+1);Object.keys(s).forEach(k=>delete s[k]);Object.assign(s,next);addEvent(s,'Awakening complete: +12% permanent damage.');return true;}
-function onKill(s,m){
- const boss=s.enemy.isBoss;
- const amount=(boss?12:2)*m.lootFactor;
- s.totals.kills++;
- if(boss){const reward=amount*m.price;s.credits+=reward;s.totals.earned+=reward;s.enemy=null;s.finished=true;s.bossActive=false;addEvent(s,`Guardian defeated! +${Math.floor(reward)} Credits. Awakening unlocked.`);return;}
- s.loot=Math.min(m.storageMax,s.loot+amount);
- s.kills++;
- if(s.kills>=4){s.kills=0;
-   if(s.stage===MAX_STAGE){s.enemy=null;s.bossReady=true;addEvent(s,'Stage 3 cleared. Challenge the Guardian!');return;}
-   s.stage++;addEvent(s,`Gate ${s.stage} unlocked.`);
- }
- s.enemy=null;s.spawnDelay=0.5;
-}
-function step(s,dt){
- if(!s.started||s.paused||s.finished||dt<=0)return;
- dt=Math.min(dt,1);
- s.elapsed+=dt;
- s.manualCooldown=Math.max(0,s.manualCooldown-dt);
- s.burstCooldown=Math.max(0,s.burstCooldown-dt);
- s.burstRemaining=Math.max(0,s.burstRemaining-dt);
- s.cloneTimer+=dt;
- let m=metrics(s);
- if(countClones(s)<capacity(s) && s.cloneTimer>=m.cloneInterval){s.jobs.generalist++;s.cloneTimer-=m.cloneInterval;addEvent(s,'A new clone was generated.');}
- if(countClones(s)>=capacity(s))s.cloneTimer=Math.min(s.cloneTimer,m.cloneInterval);
- for(const k of ['combat','conditioning','arcane'])s.training[k]=Math.min(40,s.training[k]+contribution(s,k)*m.trainingRate*dt);
- m=metrics(s);
- s.health=Math.min(m.healthMax,s.health+0.5*dt);
- if(s.loot>0){const amount=Math.min(s.loot,m.processRate*dt);s.loot=Math.max(0,s.loot-amount);const income=amount*m.price;s.credits+=income;s.totals.earned+=income;}
- if(s.retreat>0){s.retreat=Math.max(0,s.retreat-dt);if(s.retreat===0){s.health=m.healthMax;if(!s.bossReady){s.enemy=makeEnemy(s,s.bossActive);}}return;}
- if(s.bossReady)return;
- if(!s.enemy){s.spawnDelay=Math.max(0,s.spawnDelay-dt);if(s.spawnDelay===0)s.enemy=makeEnemy(s,s.bossActive);return;}
- if(m.atk+m.mag < 0.0001)return;
- s.enemy.hp-=m.dps*dt;
- if(s.enemy.hp<=0){onKill(s,m);return;}
- s.enemy.attackTimer+=dt;
- if(s.enemy.attackTimer>=4){s.enemy.attackTimer-=4;s.health-=s.enemy.damage*(1-m.mitigation);if(s.health<=0){s.health=0;s.retreat=8;s.enemy=null;addEvent(s,'Your squad retreated. Recovery underway.');}}
-}
-function advanceOffline(s,seconds){if(!s.started||s.finished||s.paused)return 0;let time=Math.min(1800,Math.max(0,seconds));const before=s.credits;let steps=Math.ceil(time);for(let i=0;i<steps;i++)step(s,Math.min(1,time-i));return Math.max(0,s.credits-before);}
-function isValidSave(s){try{return s.version===1&&Number.isFinite(s.credits)&&s.credits>=0&&s.stage>=1&&s.stage<=3&&Number.isInteger(s.awakenings)&&s.awakenings>=0&&JOBS.every(j=>Number.isInteger(s.jobs[j.id])&&s.jobs[j.id]>=0)&&Number.isInteger(s.jobs.generalist)&&s.jobs.generalist>=0&&countClones(s)<=capacity(s)&&UPGRADE_DEFS.every(d=>Number.isInteger(s.upgrades[d.id])&&s.upgrades[d.id]>=0)&&['combat','conditioning','arcane'].every(k=>Number.isFinite(s.training[k])&&s.training[k]>=0); }catch{return false;}}
+(() => {
+  const STORAGE_KEY='clone_shift_v03';
+  const assetMap=window.CLONE_ASSETS;
+  const roles=[
+    {id:'attack',name:'Attack',desc:'Physical damage specialists.',group:'hunt',img:assetMap.attack},
+    {id:'defense',name:'Defense',desc:'Reduce incoming squad damage.',group:'hunt',img:assetMap.defense},
+    {id:'magic',name:'Magic',desc:'Fire magic bolts from the backline.',group:'hunt',img:assetMap.magic},
+    {id:'combat',name:'Combat',desc:'Train strength for better attack.',group:'train',img:assetMap.combat},
+    {id:'conditioning',name:'Conditioning',desc:'Raise squad health and endurance.',group:'train',img:assetMap.conditioning},
+    {id:'arcane',name:'Arcane',desc:'Improve all magical damage.',group:'train',img:assetMap.arcane},
+    {id:'scavenger',name:'Scavenging',desc:'Pull more loot from each kill.',group:'collect',img:assetMap.scavenger},
+    {id:'processor',name:'Processing',desc:'Convert loot to credits faster.',group:'collect',img:assetMap.processor},
+  ];
+  const upgrades=[
+    {id:'weapon',name:'Weapon Drills',desc:'+25% physical output',base:40,mult:1.8},
+    {id:'focus',name:'Arcane Focus',desc:'+25% magic output',base:42,mult:1.8},
+    {id:'armor',name:'Field Armor',desc:'+24% max HP',base:45,mult:1.82},
+    {id:'storage',name:'Storage Rack',desc:'+18 loot storage',base:38,mult:1.76},
+    {id:'processors',name:'Workshop Tools',desc:'+30% processing speed',base:44,mult:1.84},
+    {id:'scavenging',name:'Carry Packs',desc:'+16% loot yield',base:36,mult:1.78},
+    {id:'block',name:'Guard Formation',desc:'+8% block efficiency',base:48,mult:1.86},
+  ];
+  const stageNames=['Ruined Atrium','Collapsed Market','Echo Mall Depths','Night Gate'];
+  const enemyPools=[
+    [{type:'slime',name:'Mold Slime',hp:28,atk:4,drop:3},{type:'spider',name:'Wire Spider',hp:34,atk:5,drop:4}],
+    [{type:'spider',name:'Mall Spider',hp:52,atk:6.5,drop:5},{type:'bat',name:'Dust Bat',hp:42,atk:7,drop:4}],
+    [{type:'brute',name:'Rot Brute',hp:74,atk:8.5,drop:7},{type:'bat',name:'Howler Bat',hp:50,atk:9,drop:5}],
+    [{type:'brute',name:'Warden Hulk',hp:96,atk:12,drop:9},{type:'spider',name:'Abyss Arachnid',hp:82,atk:11,drop:8}],
+  ];
+  const bossPool=[
+    {type:'spider',name:'Atrium Queen',hp:150,atk:14,drop:18},
+    {type:'brute',name:'Shopfront Ogre',hp:220,atk:18,drop:24},
+    {type:'brute',name:'Moss Colossus',hp:300,atk:23,drop:34},
+    {type:'brute',name:'Night Gate Warden',hp:390,atk:30,drop:48},
+  ];
+  const el=id=>document.getElementById(id); const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  const fmt=n=> (n>=1000?Math.floor(n).toLocaleString(): (Math.round(n*10)/10).toString());
+  const fmtTime=s=>{
+    if(!isFinite(s)) return 'Need income to afford';
+    if(s<=0) return 'Next clone available now';
+    if(s<60) return `Affordable in ${Math.ceil(s)}s`;
+    const m=Math.floor(s/60), r=Math.ceil(s%60); return `Affordable in ${m}m ${r}s`;
+  };
 
-const SAVE_KEY='clone-shift-v1';
-let s=createInitialState();
-let showHelp=false;
-try{const saved=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(saved&&isValidSave(saved.state)){s=saved.state;const earned=advanceOffline(s,Math.min(1800,(Date.now()-saved.timestamp)/1000));if(earned>2) s.events.unshift(`Offline earnings: ${Math.floor(earned)} Credits.`);}}catch{}
-const el=id=>document.getElementById(id);
-const fmt=n=>Math.abs(n)>=1e9?(n/1e9).toFixed(2)+'B':Math.abs(n)>=1e6?(n/1e6).toFixed(2)+'M':Math.abs(n)>=1e3?(n/1e3).toFixed(n>=1e5?0:1)+'K':Math.floor(n).toLocaleString('en-US');
-const safe=n=>Number.isFinite(n)?n:0;
-const groupNames={hunting:'01 / HUNTING',training:'02 / TRAINING',collecting:'03 / COLLECTING'};
-let lastMarkup='';
-function drawJobs(){let html='';for(const group of ['hunting','training','collecting']){
- const arr=JOBS.filter(x=>x.group===group);const total=arr.reduce((a,j)=>a+s.jobs[j.id],0);
- html+=`<div class="group-heading"><span>${groupNames[group]}</span><span>${total} assigned</span></div><div class="job-grid">`;
- for(const j of arr)html+=`<div class="job-row" title="${j.desc}"><div class="job-info"><span class="job-icon ${group}">${j.icon}</span><span><b>${j.name}</b><small>${j.desc}</small></span></div><div class="job-controls"><button data-action="unassign" data-job="${j.id}" aria-label="Unassign one ${j.name} clone" ${s.jobs[j.id]<=0?'disabled':''}>−</button><strong>${s.jobs[j.id]}</strong><button data-action="assign" data-job="${j.id}" aria-label="Assign one ${j.name} clone" ${s.jobs.generalist<=0?'disabled':''}>+</button></div></div>`;
- html+='</div>';
- }if(html!==lastMarkup){el('jobs').innerHTML=html;lastMarkup=html;}}
-function drawUpgrades(){el('upgrades').innerHTML=UPGRADE_DEFS.map(d=>{const price=cost(s,d.id);return `<div class="shop-row"><div class="shop-text"><b>${d.name}</b><small>${d.desc}</small><em>LEVEL ${s.upgrades[d.id]}</em></div><button class="buy" data-action="buy" data-upgrade="${d.id}" ${!s.started||s.finished||s.credits<price?'disabled':''}>◈ ${fmt(price)}</button></div>`}).join('');}
-function drawTraining(){const types=[['combat','Combat','+5.5% Physical / lvl'],['conditioning','Conditioning','+8% Health / lvl'],['arcane','Magic','+6.5% Magic / lvl']];el('trainingLevels').innerHTML=types.map(([k,name,desc])=>{const lev=trainLevel(s,k),percent=s.training[k]>=40?100:(s.training[k]%1)*100;return `<div class="training-row"><div class="training-text"><b>${name}</b><small>${desc}</small></div><div class="training-progress"><div class="training-fill" style="width:${percent.toFixed(2)}%"></div></div><span class="training-level">Lv ${lev}</span></div>`;}).join('');}
-function render(){const m=metrics(s);el('introOverlay').classList.toggle('hidden',s.started);el('helpOverlay').classList.toggle('hidden',!showHelp);
- el('credits').textContent=fmt(s.credits);el('creditRate').textContent=`+${(Math.min(s.loot>0?m.processRate:0,m.processRate)*m.price).toFixed(1)} potential / sec`;
- el('clones').textContent=`${countClones(s)} / ${capacity(s)}`;el('cloneRate').textContent=countClones(s)>=capacity(s)?'Capacity reached':`Next in ${Math.ceil(Math.max(0,m.cloneInterval-s.cloneTimer))}s`;
- el('loot').textContent=`${s.loot.toFixed(1)} / ${m.storageMax}`;el('storageState').textContent=s.loot>=m.storageMax-.1?'Storage full · upgrade or process':`Process ${m.processRate.toFixed(1)} loot / sec`;
- el('stageLabel').textContent=`${s.stage} / ${MAX_STAGE}`;el('gateProgress').textContent=s.finished?'Boss defeated':s.bossReady?'Guardian waiting':`${s.kills}/4 defeated`;
- el('gateTitle').textContent=['','Gate 01 · Shadow Alley','Gate 02 · Neon Underpass','Gate 03 · Rift Terminal'][s.stage];
- let status=s.finished?'VICTORY':s.paused?'PAUSED':s.bossReady?'GUARDIAN READY':s.retreat>0?'RECOVERING':s.bossActive?'BOSS FIGHT':'AUTO-HUNTING';el('combatStatus').textContent=status;el('combatStatus').classList.toggle('danger',status==='BOSS FIGHT'||status==='RECOVERING');
- el('healthLabel').textContent=`${Math.ceil(safe(s.health))} / ${Math.ceil(m.healthMax)} HP`;el('healthBar').style.width=`${Math.max(0,Math.min(100,100*s.health/m.healthMax))}%`;
- el('enemyTitle').textContent=s.bossReady?'GUARDIAN WAITING':s.bossActive?'GATE GUARDIAN':'GATE CREATURE';el('enemyLabel').textContent=s.enemy?`${Math.ceil(s.enemy.hp)} / ${s.enemy.maxHp} HP`:(s.bossReady?'CHALLENGE TO START':'—');
- el('enemyBar').style.width=`${s.enemy?Math.max(0,100*s.enemy.hp/s.enemy.maxHp):0}%`;
- el('dps').textContent=fmt(m.dps);el('damageBlock').textContent=`${Math.round(m.mitigation*100)}%`;
- el('generalists').textContent=s.jobs.generalist;
- el('challengeButton').hidden=!s.bossReady;el('awakenButton').hidden=!s.finished;
- el('summonButton').disabled=!s.started||s.finished||s.paused||s.manualCooldown>0||countClones(s)>=capacity(s);
- el('summonSub').textContent=countClones(s)>=capacity(s)?'Capacity reached':s.manualCooldown>0?`Ready in ${Math.ceil(s.manualCooldown)} sec`:'+1 Generalist · 6-sec cooldown';
- el('burstButton').disabled=!s.started||s.finished||s.paused||s.burstCooldown>0;
- el('burstSub').textContent=s.burstRemaining>0?`Active · ${Math.ceil(s.burstRemaining)} sec`:(s.burstCooldown>0?`Ready in ${Math.ceil(s.burstCooldown)} sec`:'Double damage · 10 sec');
- el('pauseButton').textContent=s.paused?'▶ Resume':'Ⅱ Pause';el('pauseButton').disabled=!s.started||s.finished;
- el('awakenings').textContent=`✦ ${s.awakenings} Awakening${s.awakenings===1?'':'s'}`;
- el('eventLog').innerHTML=(s.events||[]).slice(0,4).map(ev=>`<li>${String(ev).replace(/[<&]/g,'')}</li>`).join('');drawJobs();drawUpgrades();drawTraining();
-}
-let toastTimer=0;
-function notify(msg){const t=el('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.add('hidden'),2600);}
-document.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const a=btn.dataset.action;let changed=false;
- switch(a){case 'start':start(s);changed=true;break;case 'assign':changed=reassign(s,btn.dataset.job,1);break;case 'unassign':changed=reassign(s,btn.dataset.job,-1);break;case 'buy':changed=buy(s,btn.dataset.upgrade);break;case 'summon':changed=summon(s);break;case 'burst':changed=burst(s);break;case 'challenge':changed=challenge(s);break;case 'awaken':changed=awaken(s);break;case 'pause':s.paused=!s.paused;changed=true;break;case 'help':showHelp=true;changed=true;break;case 'close-help':showHelp=false;changed=true;break;case 'all-generalist':{let moved=0;for(const j of JOBS){moved+=s.jobs[j.id];s.jobs.generalist+=s.jobs[j.id];s.jobs[j.id]=0;}changed=moved>0;break;}}
- if(changed){render();save();}else if(['assign','unassign','summon','buy'].includes(a))notify('Not available yet. Check your free clones, cooldown or Credits.');
-});
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({timestamp:Date.now(),state:s}));}catch{}}
-let screen=el('battle'),ctx=screen.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=false;
-const W=240,H=100;const off=document.createElement('canvas');off.width=W;off.height=H;const c=off.getContext('2d');c.imageSmoothingEnabled=false;
-let startTime=performance.now(),flash=0;
-function rect(x,y,w,h,color){c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}
-function outline(x,y,w,h,fill,stroke){rect(x-1,y-1,w+2,h+2,stroke);rect(x,y,w,h,fill);}
-function cloneSprite(x,y,color,offset,t,scale=1){c.save();c.translate(Math.round(x),Math.round(y)+Math.sin(t*2+offset)*1.2);c.scale(scale,scale);rect(-6,25,18,3,'#08112577');rect(-1,13,4,12,'#152c40');rect(7,13,4,12,'#152c40');outline(-4,1,13,15,color,'#16223e');rect(6,6,5,3,'#8cdee8');rect(-1,-10,13,11,'#dfb9a5');rect(-3,-12,14,5,'#24354c');rect(1,-1,3,2,'#3b5065');rect(8,-1,2,2,'#3b5065');rect(-7,4,4,9,'#e6b49b');rect(8,4,4,9,'#e6b49b');rect(11,7,9,2,'#b4d5eb');c.restore();}
-function monster(x,y,t,isBoss){c.save();c.translate(x,y+Math.sin(t*2)*2);let scale=isBoss?1.5:1;c.scale(scale,scale);rect(-20,25,36,3,'#08112577');rect(-15,-6,28,30,'#7153a4');rect(-18,0,35,17,'#8468bb');rect(-10,-17,22,15,'#826bbd');rect(-14,-23,7,15,'#b795ea');rect(4,-23,7,15,'#b795ea');rect(-9,-9,5,4,'#f9d289');rect(4,-9,5,4,'#f9d289');rect(-5,2,13,4,'#524475');rect(-23,2,9,6,'#554487');rect(14,2,8,6,'#554487');rect(-10,24,7,6,'#4d3d73');rect(5,24,7,6,'#4d3d73');if(isBoss){rect(-18,-32,35,4,'#ba91fc');rect(-4,-39,9,8,'#e7bffd');}c.restore();}
-function drawBattle(now){const t=(now-startTime)/1000;let m=metrics(s);const grad=c.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#13284c');grad.addColorStop(.7,'#20385b');grad.addColorStop(1,'#243450');c.fillStyle=grad;c.fillRect(0,0,W,H);
- // pixel twilight skyline and luminous gate
- for(let i=0;i<9;i++){const x=i*31-6,h=15+((i*17)%32);rect(x,69-h,21,h,'#14243e');rect(x+4,74-h,3,3,'#2f5674');}
- for(let i=0;i<30;i++){const x=(i*67+19)%W,y=4+(i*19)%44;rect(x,y,1,1,i%3===0?'#77a2d1':'#456689');}
- rect(0,78,W,22,'#31445a');rect(0,78,W,2,'#627084');for(let x=0;x<W;x+=20){rect(x,85,16,1,'#374c64');rect(x+8,95,14,1,'#26394e');}
- // atmospheric gate behind monster
- c.globalAlpha=.45+.12*Math.sin(t*2);rect(189,22,31,51,'#42549c');rect(193,25,23,45,'#8878d5');rect(197,27,15,41,'#bda3eb');c.globalAlpha=1;
- const fighters=[];for(const [kind,col] of [['attack','#df716e'],['defense','#63c9cd'],['magic','#9e7ade']]){if(s.jobs[kind]>0)fighters.push(col);}if(s.jobs.generalist>0)fighters.unshift('#8c9dc5');
- fighters.slice(0,4).forEach((color,i)=>cloneSprite(24+i*21,63,color,i,t,.82));
- if(s.enemy)monster(195,54,t,s.enemy.isBoss);
- if(!s.started){rect(69,36,103,22,'#102039');c.fillStyle='#a8d9e8';c.font='8px monospace';c.fillText('PRESS START TO HUNT',74,49);}
- if(s.bossReady){rect(64,31,112,25,'#2b274b');c.fillStyle='#e2c4ff';c.font='8px monospace';c.fillText('GUARDIAN AWAITS',77,46);}
- if(s.retreat>0){rect(67,33,106,20,'#3e2940');c.fillStyle='#ffbdcb';c.font='8px monospace';c.fillText('SQUAD RECOVERING',74,46);}
- if(s.finished){rect(63,32,114,26,'#204b56');c.fillStyle='#98f6e5';c.font='9px monospace';c.fillText('GATE CLEARED!',87,48);}
- // damage animations, small projectile and hit flashes
- if(s.enemy && !s.paused){const projectile=Math.floor((t*35)%150);rect(81+projectile,47+Math.sin(t*10)*5,5,3,s.burstRemaining>0?'#ffe6aa':'#c9a4ff');if(Math.sin(t*9)>.83){rect(177,44,5,9,'#f2deff');rect(184,47,8,3,'#f2deff');}}
- ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,screen.width,screen.height);ctx.drawImage(off,0,0,screen.width,screen.height);
-}
-let last=performance.now(),lastUI=0,lastSave=Date.now();function loop(now){const dt=Math.min(0.1,(now-last)/1000);last=now;step(s,dt);drawBattle(now);if(now-lastUI>170){render();lastUI=now;}if(Date.now()-lastSave>4000){save();lastSave=Date.now();}requestAnimationFrame(loop);}
-render();requestAnimationFrame(loop);window.addEventListener('pagehide',save);window.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+
+
+  let images={};
+  const s=loadState() || freshState();
+  buildRoleCards(); buildUpgradeCards(); bindUI();
+  window.addEventListener('pagehide', saveState);
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveState(); });
+  loadAssets().then(()=>{ensureEnemy(); renderAll(); loop(performance.now()); setInterval(saveState,4000);});
+
+  function freshState(){
+    const st={
+      credits:55, loot:0, awakenings:0, stage:1, stars:0,
+      totalClones:2, maxClones:2, overdriveCd:0, overdriveLeft:0,
+      roles:{generalist:2,attack:0,defense:0,magic:0,combat:0,conditioning:0,arcane:0,scavenger:0,processor:0},
+      roleXp:Object.fromEntries(roles.map(r=>[r.id,0])), roleLv:Object.fromEntries(roles.map(r=>[r.id,0])),
+      trainXp:{combat:0,conditioning:0,arcane:0}, trainLv:{combat:0,conditioning:0,arcane:0},
+      upgrades:Object.fromEntries(upgrades.map(u=>[u.id,0])),
+      squadHp:100, battle:{enemy:null, nextTypes:[], kills:0, killsToBoss:7, boss:false},
+      lastSave:Date.now()
+    };
+    return st;
+  }
+  function loadState(){
+    try{const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return null; const st=JSON.parse(raw); offlineTick(st); return st;}catch(e){return null}
+  }
+  function saveState(){s.lastSave=Date.now(); try{localStorage.setItem(STORAGE_KEY, JSON.stringify(s));}catch(e){/* Remain playable if storage is blocked */}}
+  function resetSave(){localStorage.removeItem(STORAGE_KEY); location.reload();}
+  function offlineTick(st){
+    const dt=Math.min(60*20, Math.max(0,(Date.now()-(st.lastSave||Date.now()))/1000));
+    if(dt<=0) return;
+    // conservative offline: processing and role/training xp only
+    st.credits += Math.min(st.loot, processingRate(st)*dt) * creditValue(st);
+    st.loot = Math.max(0, st.loot - Math.min(st.loot, processingRate(st)*dt));
+    roles.forEach(r=>addRoleXp(st,r.id,(st.roles[r.id]||0)*dt*0.32));
+    ['combat','conditioning','arcane'].forEach(k=>addTrainingXp(st,k,(st.roles[k]||0)*dt*0.45));
+  }
+
+  function bindUI(){
+    document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>setTab(btn.dataset.tab)));
+    el('buyCloneBtn').addEventListener('click', buyClone);
+    el('overdriveBtn').addEventListener('click', activateOverdrive);
+    el('resetSave').addEventListener('click', ()=>{ if(confirm('Reset Clone Shift save?')) resetSave(); });
+    document.body.addEventListener('click',e=>{
+      const plus=e.target.closest('[data-plus]'); const minus=e.target.closest('[data-minus]'); const buy=e.target.closest('[data-buy-upgrade]');
+      if(plus) assignRole(plus.dataset.plus,1);
+      if(minus) assignRole(minus.dataset.minus,-1);
+      if(buy) buyUpgrade(buy.dataset.buyUpgrade);
+    });
+  }
+  function setTab(tab){
+    document.querySelectorAll('.screen').forEach(sc=>sc.classList.toggle('active', sc.id===`screen-${tab}`));
+    document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.tab===tab));
+  }
+  function buildRoleCards(){
+    const host=el('roleList');
+    roles.forEach(r=>{
+      const card=document.createElement('div'); card.className='role-card';
+      card.innerHTML=`<img src="${r.img}" alt="${r.name} pixel role"><div class="role-main"><h3>${r.name}</h3><p>${r.desc}</p><div class="role-sub"><span class="tag">Assigned: <span id="count-${r.id}">0</span></span><span class="tag">Role Lv <span id="lvl-${r.id}">0</span></span></div></div><div class="role-actions"><div class="stepper"><button data-minus="${r.id}">−</button><strong id="mini-${r.id}">0</strong><button data-plus="${r.id}">+</button></div><div class="tag" id="xp-${r.id}">0 / 12 XP</div></div>`;
+      host.appendChild(card);
+    });
+  }
+  function buildUpgradeCards(){
+    const host=el('upgradeList');
+    upgrades.forEach(u=>{
+      const card=document.createElement('div'); card.className='upgrade-card';
+      card.innerHTML=`<div class="upgrade-main"><h3>${u.name}</h3><p>${u.desc}</p></div><div class="upgrade-meta"><div class="tag" id="ug-lv-${u.id}">Lv 0</div><div class="upgrade-cost"><span id="ug-cost-${u.id}">0</span> Credits</div><button class="pixel-btn" data-buy-upgrade="${u.id}">Buy</button></div>`;
+      host.appendChild(card);
+    });
+  }
+
+  function cloneCost(st=s){ return Math.ceil(60 * Math.pow(1.58, st.maxClones-2)); }
+  function buyClone(){
+    const cost=cloneCost();
+    if(s.credits < cost) return;
+    s.credits -= cost; s.maxClones += 1; s.totalClones += 1; s.roles.generalist += 1; renderAll();
+  }
+  function assignRole(id, delta){
+    if(delta>0){ if(s.roles.generalist<=0) return; s.roles.generalist--; s.roles[id]++; }
+    else { if(s.roles[id]<=0) return; s.roles[id]--; s.roles.generalist++; }
+    renderAll();
+  }
+  function buyUpgrade(id){
+    const u=upgrades.find(x=>x.id===id), lv=s.upgrades[id]||0, cost=Math.ceil(u.base*Math.pow(u.mult,lv));
+    if(s.credits<cost) return; s.credits-=cost; s.upgrades[id]++; renderAll();
+  }
+
+  function roleBonus(id, st=s){ return 1 + (st.roleLv[id]||0)*0.05; }
+  function addRoleXp(st,id,amount){
+    st.roleXp[id]=(st.roleXp[id]||0)+amount;
+    while(st.roleXp[id]>=12){ st.roleXp[id]-=12; st.roleLv[id]++; }
+  }
+  function addTrainingXp(st,id,amount){
+    st.trainXp[id]=(st.trainXp[id]||0)+amount;
+    while(st.trainXp[id]>=10){ st.trainXp[id]-=10; st.trainLv[id]++; }
+  }
+  function physicalDps(st=s){
+    const base=4.2*(1+st.upgrades.weapon*0.25)*(1+st.awakenings*0.12);
+    const units=((st.roles.attack||0)*1 + (st.roles.generalist||0)*0.18) * roleBonus('attack',st);
+    return base*units*(1+st.trainLv.combat*0.05);
+  }
+  function magicDps(st=s){
+    const base=3.1*(1+st.upgrades.focus*0.25)*(1+st.awakenings*0.10);
+    const units=((st.roles.magic||0)*1 + (st.roles.generalist||0)*0.1) * roleBonus('magic',st);
+    return base*units*(1+st.trainLv.arcane*0.05);
+  }
+  function totalDps(st=s){ return (physicalDps(st)+magicDps(st)) * (st.overdriveLeft>0 ? 2 : 1); }
+  function blockPct(st=s){ const def=((st.roles.defense||0)*0.08*roleBonus('defense',st)) + st.upgrades.block*0.08; return clamp(def,0,0.72); }
+  function maxHp(st=s){ const base=84*(1+st.upgrades.armor*0.24); const cond=((st.roles.conditioning||0)*0.18*roleBonus('conditioning',st)); return Math.round(base*(1+cond+st.trainLv.conditioning*0.04)); }
+  function storageCap(st=s){ return 24 + st.upgrades.storage*18; }
+  function processingRate(st=s){ return (((st.roles.processor||0)*1.15*roleBonus('processor',st)) + (st.roles.generalist||0)*0.12) * (1+st.upgrades.processors*0.30); }
+  function lootYield(st=s){ return 1 + ((st.roles.scavenger||0)*0.18*roleBonus('scavenger',st)) + st.upgrades.scavenging*0.16; }
+  function creditValue(st=s){ return Math.floor(4 * Math.pow(1.34, st.stage-1)); }
+  function attackStrength(st=s){ return totalDps(st); }
+
+  function theoreticalEnemy(){
+    const idx=Math.min(s.stage-1, enemyPools.length-1); const pool=enemyPools[idx];
+    const enemy=pool[0]; return {avgHp: enemy.hp*Math.pow(1.27,s.stage-1), avgDrop: enemy.drop};
+  }
+  function lootPerSec(st=s){
+    const e=theoreticalEnemy(); if(totalDps(st)<=0) return 0; const kills=(totalDps(st)/e.avgHp); return kills*e.avgDrop*lootYield(st);
+  }
+  function creditsPerSec(st=s){ return Math.min(lootPerSec(st), processingRate(st)) * creditValue(st); }
+
+  function ensureEnemy(){ if(!s.battle.enemy){ queueEnemies(); spawnEnemy(); s.squadHp=maxHp(); } if(s.squadHp>maxHp()) s.squadHp=maxHp(); }
+  function queueEnemies(){
+    const idx=Math.min(s.stage-1, enemyPools.length-1); const pool=enemyPools[idx];
+    s.battle.nextTypes=[];
+    for(let i=0;i<3;i++) s.battle.nextTypes.push(pool[i%pool.length].type);
+  }
+  function spawnEnemy(){
+    const idx=Math.min(s.stage-1, enemyPools.length-1);
+    let tpl;
+    if(s.battle.boss){ tpl=bossPool[idx]; }
+    else { const pool=enemyPools[idx]; tpl=pool[(s.battle.kills)%pool.length]; }
+    const scale=Math.pow(1.24, s.stage-1);
+    s.battle.enemy={type:tpl.type,name:tpl.name,maxHp:Math.round(tpl.hp*scale),hp:Math.round(tpl.hp*scale),atk:tpl.atk*(1+(s.stage-1)*0.14),drop:tpl.drop};
+  }
+  function onEnemyDefeated(){
+    const gain=Math.floor(s.battle.enemy.drop * lootYield());
+    s.loot = Math.min(storageCap(), s.loot + gain);
+    if(s.battle.boss){
+      s.stage = Math.min(stageNames.length, s.stage+1);
+      s.stars = Math.min(5, s.stars+1);
+      s.battle.kills=0; s.battle.boss=false; queueEnemies();
+      // awakening every full cycle through stages
+      if(s.stage===stageNames.length && s.stars>=5){ s.awakenings += 1; s.stars = 0; }
+    } else {
+      s.battle.kills++;
+      if(s.battle.kills >= s.battle.killsToBoss){ s.battle.boss=true; }
+    }
+    spawnEnemy();
+  }
+  function activateOverdrive(){ if(s.overdriveCd>0) return; s.overdriveCd=20; s.overdriveLeft=8; }
+
+  let last=0, lastUi=0;
+  function loop(now){
+    const dt=Math.min(0.1,(now-last)/1000||0.016); last=now;
+    tick(dt); drawBattle();
+    if(now-lastUi>180){renderDynamic();lastUi=now;}
+    requestAnimationFrame(loop);
+  }
+  function tick(dt){
+    ensureEnemy();
+    // cooldowns
+    s.overdriveCd=Math.max(0,s.overdriveCd-dt); s.overdriveLeft=Math.max(0,s.overdriveLeft-dt);
+    // xp accumulation
+    roles.forEach(r=>addRoleXp(s,r.id,(s.roles[r.id]||0)*dt*0.32));
+    ['combat','conditioning','arcane'].forEach(k=>addTrainingXp(s,k,(s.roles[k]||0)*dt*0.45));
+    // processing
+    const proc=Math.min(s.loot, processingRate()*dt); s.loot-=proc; s.credits+=proc*creditValue();
+    // battle
+    const enemy=s.battle.enemy; if(!enemy) return;
+    enemy.hp -= totalDps()*dt;
+    s.squadHp -= enemy.atk*(1-blockPct())*dt;
+    if(s.squadHp<=0){ s.squadHp=maxHp(); enemy.hp=enemy.maxHp; }
+    if(enemy.hp<=0){ onEnemyDefeated(); }
+  }
+
+  function renderAll(){ renderStatic(); renderDynamic(); }
+  function renderStatic(){
+    document.querySelectorAll('.role-card img').forEach(()=>{});
+    upgrades.forEach(u=>{ const lv=s.upgrades[u.id]||0; el(`ug-lv-${u.id}`).textContent=`Lv ${lv}`; el(`ug-cost-${u.id}`).textContent=Math.ceil(u.base*Math.pow(u.mult,lv)); });
+  }
+  function renderDynamic(){
+    // home
+    const cps=creditsPerSec(); const cost=cloneCost();
+    el('homeGate').textContent=`Stage ${s.stage} · ${stageNames[s.stage-1]}`;
+    el('stageStars').textContent='★★★★★'.slice(0,s.stars) + '☆☆☆☆☆'.slice(0,5-s.stars);
+    el('creditsHome').textContent=fmt(s.credits); el('creditsPerSec').textContent=`+${fmt(cps)} / sec`;
+    el('cloneCountHome').textContent=`${s.totalClones} / ${s.maxClones}`;
+    el('freeGeneralists').textContent=s.roles.generalist;
+    el('cloneAffordEta').textContent=fmtTime(cps>0 ? Math.max(0,(cost-s.credits)/cps):Infinity);
+    el('nextCloneCost').textContent=fmt(cost);
+    el('buyCloneBtn').disabled = s.credits < cost;
+    el('lootPerSec').textContent=`${fmt(lootPerSec())} / sec`;
+    el('lootStorage').textContent=`${fmt(s.loot)} / ${storageCap()}`;
+    el('processingSpeed').textContent=`${fmt(processingRate())} / sec`;
+    el('dpsHome').textContent=fmt(totalDps());
+    el('hpHome').textContent=`${Math.round(s.squadHp)} / ${maxHp()}`;
+    el('blockHome').textContent=`${Math.round(blockPct()*100)}% blocked`;
+
+    // attack
+    el('attackGateTitle').textContent=`Stage ${s.stage} · ${stageNames[s.stage-1]}`;
+    el('battleState').textContent=s.battle.boss ? 'Boss Fight' : 'Continuous Hunt';
+    el('squadBar').style.width=`${clamp((s.squadHp/maxHp())*100,0,100)}%`; el('enemyBar').style.width=`${clamp((s.battle.enemy.hp/s.battle.enemy.maxHp)*100,0,100)}%`;
+    el('squadHpText').textContent=`${Math.max(0,Math.round(s.squadHp))} / ${maxHp()}`;
+    el('enemyLabel').textContent=s.battle.enemy.name; el('enemyHpText').textContent=`${Math.max(0,Math.round(s.battle.enemy.hp))} / ${s.battle.enemy.maxHp}`;
+    el('attackDps').textContent=fmt(totalDps()); el('attackLootRate').textContent=fmt(lootPerSec());
+    el('overdriveBtn').textContent = s.overdriveCd>0 ? `Overdrive ${Math.ceil(s.overdriveCd)}s` : 'Overdrive';
+
+    // train
+    el('trainFreeGeneralists').textContent=s.roles.generalist;
+    roles.forEach(r=>{ el(`count-${r.id}`).textContent=s.roles[r.id]; el(`mini-${r.id}`).textContent=s.roles[r.id]; el(`lvl-${r.id}`).textContent=s.roleLv[r.id]; el(`xp-${r.id}`).textContent=`${s.roleXp[r.id].toFixed(1)} / 12 XP`; });
+    const tHost=el('trainingLevels'); tHost.innerHTML='';
+    [['combat','Combat Training'],['conditioning','Conditioning'],['arcane','Arcane Training']].forEach(([k,label])=>{ const row=document.createElement('div'); row.className='level-row'; row.innerHTML=`<div class="left"><strong>${label}</strong><small>${s.trainXp[k].toFixed(1)} / 10 XP</small></div><div class="tag">Lv ${s.trainLv[k]}</div>`; tHost.appendChild(row); });
+
+    // upgrades
+    el('upgradeCredits').textContent=fmt(s.credits);
+  }
+
+  async function loadAssets(){
+    const srcs=Object.keys(assetMap);
+    await Promise.all(srcs.map(name=>new Promise(res=>{const img=new Image(); img.onload=()=>{images[name]=img;res();}; img.src=assetMap[name]; })));
+  }
+  function drawBattle(){
+    const c=el('battleCanvas'); if(!c) return; const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,c.width,c.height);
+    if(images.mall_bg) ctx.drawImage(images.mall_bg,0,0,c.width,c.height);
+    // dark overlays for UI zones
+    ctx.fillStyle='rgba(12,10,9,.18)'; ctx.fillRect(0,0,c.width,22);
+    ctx.fillStyle='rgba(12,10,9,.2)'; ctx.fillRect(0,c.height-58,c.width,58);
+
+    // left squad platform
+    ctx.fillStyle='rgba(239,236,226,.10)'; ctx.fillRect(20,158,112,46);
+    // right enemy platform
+    ctx.fillRect(234,48,110,46);
+
+    // draw squad commander-like group
+    const squad=['attack','defense','magic'];
+    let activeSquad=[];
+    roles.filter(r=>['attack','defense','magic'].includes(r.id)).forEach(r=>{ for(let i=0;i<Math.min(2,s.roles[r.id]);i++) activeSquad.push(r.id); });
+    if(activeSquad.length===0) activeSquad = ['conditioning'];
+    activeSquad.slice(0,3).forEach((id,i)=>{ const img=images[id] || images.attack; const x=36+i*28; const y=136 + (i===1?6:0); ctx.drawImage(img,x,y,44,44); });
+    // commander silhouette from conditioning/combat as back hero
+    const hero=images.combat || images.attack; ctx.drawImage(hero,72,116,54,54);
+
+    // enemy + queue
+    const enemyType=s.battle.enemy.type; const eimg=images[enemyType] || images.slime; const isBoss=s.battle.boss;
+    const ex=isBoss?254:264, ey=isBoss?54:64, ew=isBoss?66:50, eh=isBoss?66:50; ctx.drawImage(eimg,ex,ey,ew,eh);
+    const queue=s.battle.nextTypes||[];
+    queue.slice(0,3).forEach((t,i)=>{ const qimg=images[t]||images.slime; ctx.globalAlpha=0.78; ctx.drawImage(qimg,250+i*28,132,24,24); ctx.globalAlpha=1; });
+
+    // magic beams if magic assigned
+    if(s.roles.magic>0){ ctx.strokeStyle='rgba(87,195,200,.95)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(100,145); ctx.lineTo(ex+18,ey+16); ctx.stroke(); }
+    // labels
+    ctx.fillStyle='#f0ece2'; ctx.font='bold 12px sans-serif'; ctx.fillText('CLONES', 24, 26); ctx.fillText(isBoss?'BOSS':'ENEMY', 292, 26);
+    ctx.fillStyle='#d7cab0'; ctx.font='11px sans-serif'; ctx.fillText(`Free ${s.roles.generalist}`, 24, 40); ctx.fillText(`Next`, 254, 126);
+  }
+})();
 
