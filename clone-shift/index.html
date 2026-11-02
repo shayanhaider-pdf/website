@@ -1,131 +1,55 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#1b1815">
-  <title>Clone Shift v0.4</title>
-  <link rel="stylesheet" href="./style.css?v=04">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#241e15">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Hunt, scavenge, train and build your clone workforce in an overgrown mall.">
+<title>Clone Shift v0.5</title>
+<link rel="stylesheet" href="./style.css?v=050">
 </head>
 <body>
-<div class="app"><div class="rate-hud" aria-label="Live production rates"><div><span>⚔ DPS</span><strong id="globalDps">0</strong></div><div><span>◆ Loot/s</span><strong id="globalLoot">0</strong></div><div><span>◉ Credits/s</span><strong id="globalCredits">0</strong></div></div>
-  <section class="screen active" id="screen-home">
-    <header class="home-header">
-      <div>
-        <div class="eyebrow">CLONE SHIFT · HUNTER HQ</div>
-        <h1>Shadow Gate Operations</h1>
-        <div class="subline"><span id="homeGate">Stage 1 · Ruined Atrium</span><span id="stageStars" class="stars">★☆☆☆☆</span></div>
-      </div>
-      <button id="resetSave" class="icon-btn" title="Reset save">⟲</button>
-    </header>
-
-    <section class="home-board">
-      <div class="hud-row major">
-        <div class="metric-block credits">
-          <label>Credits</label>
-          <strong id="creditsHome">0</strong>
-          <small id="creditsPerSec">+0 / sec · recent 5s</small>
-        </div>
-        <div class="metric-block clones-block">
-          <label>Clone Workforce</label>
-          <strong id="cloneCountHome">2 / 2</strong>
-          <small id="cloneAffordEta">Next clone available now</small>
-        </div>
-      </div>
-      <div class="clone-purchase-row">
-        <div>
-          <div class="purchase-label">Buy +1 clone capacity and clone</div>
-          <div class="purchase-meta">Cost: <span id="nextCloneCost">0</span> Credits · Free generalists: <span id="freeGeneralists">0</span></div>
-        </div>
-        <button id="buyCloneBtn" class="pixel-btn large">+1 Clone</button>
-      </div>
-
-      <p class="micro-info">Loot and Credits per second are measured from the actual last 5 seconds of production.</p><div class="home-grid">
-        <div class="metric-card wide">
-          <div class="card-title">Loot Flow</div>
-          <div class="flow-line"><span>Loot gain</span><strong id="lootPerSec">0 / sec · recent 5s</strong></div>
-          <div class="flow-line"><span>Storage</span><strong id="lootStorage">0 / 0</strong></div>
-          <div class="flow-line"><span>Processing</span><strong id="processingSpeed">0 / sec</strong></div>
-        </div>
-        <div class="metric-card">
-          <div class="card-title">Combat Output</div>
-          <div class="power-number" id="dpsHome">0</div>
-          <div class="power-sub">damage / sec</div>
-        </div>
-        <div class="metric-card">
-          <div class="card-title">Squad HP</div>
-          <div class="power-number" id="hpHome">0 / 0</div>
-          <div class="power-sub" id="blockHome">0% blocked</div>
-        </div>
-      </div>
-    </section>
-  </section>
-
-  <section class="screen" id="screen-attack">
-    <header class="section-header minimal">
-      <div>
-        <div class="eyebrow">ATTACK</div>
-        <h2 id="attackGateTitle">Stage 1 · Ruined Atrium</h2>
-      </div>
-      <div class="battle-state" id="battleState">Hunting</div>
-    </header>
-    <section class="battle-shell panelish">
-      <canvas id="battleCanvas" width="368" height="248" aria-label="Pokemon-style pixel battle scene"></canvas>
-      <div class="bar-stack">
-        <div class="battle-side">
-          <div class="battle-label">Clone Squad</div>
-          <div class="bar"><div class="fill hp" id="squadBar"></div></div>
-          <div class="bar-text" id="squadHpText">0 / 0</div>
-        </div>
-        <div class="battle-side enemy-side">
-          <div class="battle-label" id="enemyLabel">Enemy</div>
-          <div class="bar"><div class="fill enemy" id="enemyBar"></div></div>
-          <div class="bar-text" id="enemyHpText">0 / 0</div>
-        </div>
-      </div>
-      <div class="battle-under">
-        <div class="under-stat"><span>DPS</span><strong id="attackDps">0</strong></div>
-        <div class="under-stat"><span>Loot/sec</span><strong id="attackLootRate">0</strong></div>
-        <button id="overdriveBtn" class="pixel-btn">Overdrive</button>
-      </div>
-    </section>
-  </section>
-
-  <section class="screen" id="screen-train">
-    <header class="section-header">
-      <div>
-        <div class="eyebrow">TRAIN</div>
-        <h2>Role Assignment</h2>
-      </div>
-      <div class="small-pill">Free Generalists: <span id="trainFreeGeneralists">1</span></div>
-    </header>
-    <section class="role-list" id="roleList"></section>
-    <section class="training-block panelish">
-      <div class="card-title">Shared Training Levels</div>
-      <div class="training-levels" id="trainingLevels"></div>
-    </section>
-  </section>
-
-  <section class="screen" id="screen-upgrades">
-    <header class="section-header">
-      <div>
-        <div class="eyebrow">UPGRADES</div>
-        <h2>Power Ups</h2>
-      </div>
-      <div class="small-pill">Credits: <span id="upgradeCredits">0</span></div>
-    </header>
-    <section class="upgrade-list" id="upgradeList"></section>
-  </section>
+<div class="app">
+<header class="rate-hud frame" aria-label="Live game statistics">
+<div class="hud-cell"><i data-icon="swords"></i><div class="hud-readout"><span>DPS</span><div><strong id="globalDps">0.0</strong><small> /s</small></div></div><small class="hud-sub" id="hudAttackers">Attackers: 5</small></div>
+<div class="hud-cell"><i data-icon="crate"></i><div class="hud-readout"><span>Loot/sec</span><div><strong id="globalLoot">0.0</strong><small> /s</small></div></div><small class="hud-sub" id="hudStorage">0 / 24 stored</small></div>
+<div class="hud-cell"><i data-icon="coins"></i><div class="hud-readout"><span>Credits/sec</span><div><strong id="globalCredits">0.0</strong><small> /s</small></div></div><small class="hud-sub"><b id="creditsHome">0</b> total</small></div>
+</header>
+<main>
+<section class="screen home-screen active" id="screen-home" aria-label="Home">
+<div class="scene home-scene"><canvas id="homeCanvas" width="480" height="300" role="img" aria-label="Identical clones with role accessories at their camp in the ruined mall"></canvas><span class="game-mark">CLONE SHIFT <small>v0.5</small></span><button id="settingsBtn" class="settings-btn" aria-label="Game settings"><i data-icon="gear"></i></button></div>
+<div class="home-panels">
+<section class="panel workforce-panel"><h2 class="ribbon"><i data-icon="people"></i>Workforce</h2><div class="workforce-body"><canvas class="clone-portrait" data-role-sprite="generalist" width="64" height="72" aria-hidden="true"></canvas><div class="workforce-data"><span>Clones <strong id="cloneCountHome">20 <small>/ 20</small></strong></span><div class="meter workforce-meter"><div id="workforceBar"></div></div><small>Available: <b id="freeGeneralists">1</b><span class="test-badge" id="testBadge">TEST</span></small></div></div><button class="text-action" data-go-train>Assign workforce <span>›</span></button></section>
+<section class="panel buy-panel"><h2 class="ribbon"><i data-icon="plus-person"></i>Buy clones</h2><div class="buy-body"><button id="buyCloneBtn" class="pixel-btn buy-clone">+1 CLONE</button><div class="purchase-cost"><i data-icon="coins"></i>Next cost: <b id="nextCloneCost">80</b></div><small id="cloneAffordEta">Earning credits…</small></div></section>
+<section class="panel loot-panel"><h2 class="ribbon"><i data-icon="crate"></i>Loot flow</h2><span id="storageWarning" class="storage-state">STORAGE OK</span><div class="loot-body"><div class="stockpile" aria-hidden="true"><i data-icon="crates"></i></div><div><span>Gain</span><strong id="lootPerSec">0.0 <small>/s</small></strong></div><div><span>Stored</span><strong id="lootStorage">0 <small>/ 24</small></strong></div><div><span>Processing</span><strong id="processingSpeed">0.0 <small>/s</small></strong></div></div><div class="meter loot-meter"><div id="lootBar"></div></div></section>
+<section class="panel combat-panel"><h2 class="ribbon"><i data-icon="swords"></i>Combat output</h2><div class="output-primary"><i data-icon="burst"></i><div><span>Total DPS</span><strong id="dpsHome">0.0 <small>/s</small></strong></div></div><div class="output-details"><span><i data-icon="sword"></i>Physical <b id="physicalDps">0.0 /s</b></span><span><i data-icon="hat"></i>Magic <b id="magicDps">0.0 /s</b></span></div></section>
+<section class="panel hp-panel"><h2 class="ribbon"><i data-icon="shield"></i>Squad HP</h2><div class="output-primary"><i data-icon="heart"></i><div><span>HP</span><strong id="hpHome">84 <small>/ 84</small></strong></div></div><div class="meter hp-meter"><div id="homeHpBar"></div></div><div class="defense-line"><i data-icon="shield"></i>Block: <b id="blockHome">8%</b></div></section>
 </div>
-
-<nav class="bottom-nav">
-  <button class="nav-btn active" data-tab="home">Home</button>
-  <button class="nav-btn" data-tab="attack">Attack</button>
-  <button class="nav-btn" data-tab="train">Train</button>
-  <button class="nav-btn" data-tab="upgrades">Upgrades</button>
-</nav>
-
-<script src="./assets-v03.js?v=04"></script>
-<script src="./game.js?v=04"></script>
+</section>
+<section class="screen attack-screen" id="screen-attack" aria-label="Attack" hidden>
+<div class="scene battle-scene"><div class="stage-banner frame"><i data-icon="swords"></i><h1 id="attackGateTitle">Stage 1 · Ruined Atrium</h1><span id="stageStars" class="stars" aria-label="Stage stars">☆☆☆☆☆</span></div><canvas id="battleCanvas" width="480" height="450" role="img" aria-label="Animated clone squad continuously fighting mall creatures"></canvas><div class="battle-status"><span class="live-dot"></span><span id="battleState">Continuous hunt</span></div><button id="overdriveBtn" class="pixel-btn overdrive">Overdrive <small>2× DPS</small></button><div id="wipeOverlay" class="wipe-overlay" hidden><span>☠ TEAM WIPE ☠</span><strong id="wipeCountdown">5</strong><small>Squad redeploying…</small></div></div>
+<div class="battle-health"><section class="panel"><h2 class="ribbon"><i data-icon="people"></i>Clone squad</h2><div class="meter hp-meter"><div id="squadBar"></div></div><strong id="squadHpText">84 / 84</strong></section><section class="panel"><h2 class="ribbon"><i data-icon="skull"></i><span id="enemyLabel">Mold Slime</span></h2><div class="meter enemy-meter"><div id="enemyBar"></div></div><strong id="enemyHpText">28 / 28</strong></section></div>
+<section class="panel attack-flow"><h2 class="ribbon"><i data-icon="crate"></i>Loot & credit flow</h2><canvas id="flowCanvas" width="480" height="105" role="img" aria-label="Scavenger clones carry loot to the animated processing station"></canvas><div class="flow-metrics"><div><strong id="killRate">0.0<small>/s</small></strong><span>Enemies<br>defeated</span></div><div><strong id="attackLootRate">0.0<small>/s</small></strong><span>Loot<br>collected</span></div><div><strong id="attackProcessingRate">0.0<small>/s</small></strong><span>Loot<br>processed</span></div><div><strong id="attackCreditRate">0.0<small>/s</small></strong><span>Credits<br>converted</span></div></div><div class="flow-capacity">Capacity: <b id="processingCapacity">0.0 loot/s</b><span id="creditValueLabel">1 loot = 4 credits</span></div></section>
+</section>
+<section class="screen train-screen" id="screen-train" aria-label="Train" hidden>
+<div class="scene train-scene"><canvas id="trainCanvas" width="480" height="160" role="img" aria-label="Clones practising combat and magic"></canvas><h1 class="plaque frame"><i data-icon="dumbbell"></i>Train<i data-icon="dumbbell"></i></h1></div>
+<div class="train-toolbar"><div class="switcher frame" role="group" aria-label="Assignment type"><button class="active" data-mode="workers">Workforce</button><button data-mode="training">Training</button></div><span class="available-pill"><i data-icon="people"></i><b id="trainFreeGeneralists">1</b> available</span></div>
+<div class="role-list" id="roleList"></div>
+<div class="training-summary"><span>1 generalist stays on support</span><span id="trainingSummary">Shared training bonuses</span></div>
+</section>
+<section class="screen upgrades-screen" id="screen-upgrades" aria-label="Upgrades" hidden>
+<div class="scene upgrades-scene"><h1 class="plaque frame">Upgrades</h1><span class="credit-plaque frame"><i data-icon="coins"></i><b id="upgradeCredits">0</b></span></div>
+<div class="upgrade-list" id="upgradeList"></div>
+</section>
+</main>
+<nav class="bottom-nav" aria-label="Game screens"><button class="nav-btn active" data-tab="home" aria-current="page"><i data-icon="home"></i><span>HOME</span></button><button class="nav-btn" data-tab="attack"><i data-icon="swords"></i><span>ATTACK</span></button><button class="nav-btn" data-tab="train"><i data-icon="dumbbell"></i><span>TRAIN</span></button><button class="nav-btn" data-tab="upgrades"><i data-icon="gear"></i><span>UPGRADES</span></button></nav>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="settingsDialog" class="settings-dialog frame"><h2>Clone Shift <small>v0.5</small></h2><p id="saveStatus">Progress saves automatically on this device.</p><label class="motion-toggle"><input type="checkbox" id="motionToggle"> Reduce animation</label><button id="resetSave" class="pixel-btn secondary">Reset progress</button><button id="closeSettings" class="pixel-btn">Back to game</button></dialog>
+<script src="./art.js?v=050"></script>
+<script src="./engine.js?v=050"></script>
+<script src="./game.js?v=050"></script>
 </body>
 </html>
