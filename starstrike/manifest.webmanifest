@@ -2,13 +2,13 @@
   "id": "./index.html",
   "name": "Starstrike Frontier",
   "short_name": "Starstrike",
-  "description": "A neon space survival arcade for iPhone and browsers.",
+  "description": "A doodle space adventure on a white sketchpad, with three ships and linked skill trees.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050a19",
-  "theme_color": "#071023",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "./icons/icon.png",

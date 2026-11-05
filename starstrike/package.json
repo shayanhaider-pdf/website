@@ -1,0 +1,10 @@
+{
+  "name": "starstrike-sketchbook",
+  "private": true,
+  "version": "7.0.0",
+  "scripts": {
+    "test": "node --test tests/engine.test.cjs tests/progress.test.cjs",
+    "test:browser": "node --test tests/browser.e2e.cjs"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}
